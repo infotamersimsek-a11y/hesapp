@@ -155,6 +155,23 @@ Kullanıcı Findeks'ten kredi kartı raporu PDF'i yükleyip kartların otomatik 
 - **Sınırlama (dürüstçe belirtildi):** Bu ortamda gerçek iOS/Android cihaz ya da tarayıcı emülasyon aracı yok — değişiklikler PWA/mobil best-practice'lere göre kod/CSS seviyesinde yapıldı ve build/manifest doğruluğu (geçerli JSON, doğru `Content-Type: application/manifest+json`, meta etiketlerin canlı sitede çıktığı) test edildi, ama gerçek cihazda görsel/dokunma testi yapılamadı. **Kullanıcının telefonundan gerçek "Ana Ekrana Ekle" testi yapıp geri bildirmesi gerekiyor.**
 - Değişiklikler commit edilip push edildi, Vercel otomatik deploy etti, canlı sitede meta etiketler + manifest doğrulandı (`curl` ile).
 
+## Şifre Koruması Eklendi (site herkese açıktı, kapatıldı)
+- 2026-08-27: Kullanıcı fark etti — site herkese açık, veriler herkes tarafından görülebiliyordu. **Backend seviyesinde gerçek koruma** eklendi (sadece arayüzde gizleme değil — API'ye direkt istek atılsa da artık engelleniyor).
+- Şifre kullanıcı tarafından belirlendi: `142536` (tek şifre, iki kullanıcı da paylaşıyor — ayrı hesap sistemi yok, tek giriş ekranı).
+- **Mimari: JWT tabanlı stateless oturum** (Vercel serverless olduğu için session/cookie store yerine imzalı token seçildi):
+  - `server/src/auth.js`: `signToken()` (30 gün geçerli JWT üretir), `checkPassword()` (zamanlamaya dayanıklı `crypto.timingSafeEqual` ile şifre kıyaslar, timing attack'a karşı), `requireAuth` middleware (Authorization header'da geçerli JWT yoksa 401).
+  - `server/src/routes/auth.js`: `POST /api/auth/login` — şifre doğruysa token döner.
+  - `server/src/app.js`: `/api/auth` route'u AÇIK, ondan sonraki `app.use('/api', requireAuth)` satırı geri kalan TÜM `/api/*` rotalarını kilitliyor (shops, daily-income, daily-expense, monthly-expense, summary, ai, credit-cards — hepsi artık token istiyor).
+  - `client/src/auth.js`: token `localStorage`'da saklanıyor, `login()` fonksiyonu var.
+  - `client/src/Login.jsx`: basit şifre giriş ekranı.
+  - `client/src/App.jsx`: token yoksa direkt Login ekranını gösteriyor, veri çekmiyor.
+  - `client/src/api.js`: her istekte `Authorization: Bearer <token>` header'ı otomatik ekleniyor; sunucu 401 dönerse token siliniyor ve sayfa yenilenip login ekranına dönülüyor (oturum süresi dolunca / şifre değişince otomatik toparlanır).
+  - Env: `APP_PASSWORD`, `JWT_SECRET` (rastgele 96 karakter hex, `crypto.randomBytes(48)` ile üretildi) — hem `server/.env` (local) hem Vercel production'a eklendi.
+- **Bulunan bug:** İlk yazımda `auth.js`'de `const SECRET = process.env.JWT_SECRET` modül seviyesinde (import anında) okunuyordu — ama `dotenv.config()` `app.js`'de imports'lardan SONRA çalışıyor, yani `auth.js` import edildiğinde `JWT_SECRET` henüz yüklenmemiş oluyordu (ESM import sırası tuzağı). Belirti: doğru şifre bile "Şifre yanlış" / `secretOrPrivateKey must have a value` hatası veriyordu. **Düzeltme:** `process.env.JWT_SECRET`'i fonksiyon içinde (çağrı anında) okumaya çevirdik, modül seviyesinde cache'lemedik.
+- **Ayrıca öğrenildi:** `node --watch` sadece import edilen JS/mjs dosyalarını izliyor, `.env` dosyasını İZLEMİYOR — `.env` değiştiğinde sunucu otomatik yeniden başlamıyor, elle restart gerekiyor. Bundan sonra `.env` değişikliği yapılınca bunu hatırla.
+- Local'de tam test edildi (şifresiz 401, yanlış şifre 401, doğru şifre → token → korumalı route 200), sonra canlıda (`hesapalr.vercel.app`) aynı testler tekrarlandı, hepsi doğru çalıştı.
+- Commit edilip push edildi, Vercel otomatik deploy etti.
+
 ## Proje Yapısı
 ```
 hesapalr/
