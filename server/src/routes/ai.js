@@ -6,7 +6,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 
 
 const GROQ_BASE = 'https://api.groq.com/openai/v1';
 const WHISPER_MODEL = process.env.GROQ_WHISPER_MODEL || 'whisper-large-v3';
-const TEXT_MODEL = process.env.GROQ_TEXT_MODEL || 'llama-3.3-70b-versatile';
+const TEXT_MODEL = process.env.GROQ_TEXT_MODEL || 'openai/gpt-oss-120b';
 
 function apiKey() {
   const key = process.env.GROQ_API_KEY;
