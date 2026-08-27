@@ -172,6 +172,12 @@ Kullanıcı Findeks'ten kredi kartı raporu PDF'i yükleyip kartların otomatik 
 - Local'de tam test edildi (şifresiz 401, yanlış şifre 401, doğru şifre → token → korumalı route 200), sonra canlıda (`hesapalr.vercel.app`) aynı testler tekrarlandı, hepsi doğru çalıştı.
 - Commit edilip push edildi, Vercel otomatik deploy etti.
 
+## Kullanıcı Gerçek Cihazda Test Etti — Bug Bulundu ve Düzeltildi
+- 2026-08-27: Kullanıcı iPhone'da (Safari, hesapalr.vercel.app) uygulamayı gerçekten kullandı — giriş ekranı, sekmeler, gider ekleme çalıştı. **Sesle Ekle'de hata çıktı:** `404 model_not_found — llama-3.3-70b-versatile does not exist`. Groq bu modeli kataloğundan kaldırmış.
+- Groq'un güncel model listesi canlı API'den çekildi (`GET /v1/models`) — mevcut modeller arasından `openai/gpt-oss-120b` seçildi, JSON mode + Türkçe çıktı ile test edildi (gerçek örnek: "500 lira nakit geldi, 200 lira pos geldi, 50 lira temizlik gideri oldu" → doğru 3 işleme ayrıştı). `GROQ_TEXT_MODEL` hem `server/.env` hem Vercel production'da güncellendi, `server/src/routes/ai.js`'deki fallback default'u da güncellendi. `GROQ_WHISPER_MODEL` (whisper-large-v3) değişmedi, hâlâ mevcut.
+  - **Not:** Groq'un model kataloğu zaman zaman değişiyor/modeller kaldırılıyor — ileride yine "model_not_found" hatası çıkarsa aynı yöntemle (`GET https://api.groq.com/openai/v1/models` ile Bearer key kullanarak) güncel listeyi çekip `GROQ_TEXT_MODEL`/`GROQ_WHISPER_MODEL`'i güncelle.
+- Kullanıcı ayrıca "konuşurken aynı anda metne çevrilsin" istedi (gerçek zamanlı canlı transkript). Açıklandı: bu, iPhone Safari'de desteklenmeyen bir tarayıcı özelliği (Web Speech API) gerektirir; tam platformlar-arası gerçek zamanlı çözüm için ücretli streaming STT servisi (Deepgram vb.) + belirgin ek geliştirme gerekir. **Kullanıcı karar verdi: mevcut akış (konuş → bırak → 1-2 saniyede metne çevrilir) yeterli, ek servis kurulmayacak.**
+
 ## Proje Yapısı
 ```
 hesapalr/
