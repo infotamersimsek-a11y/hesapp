@@ -3,6 +3,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import 'express-async-errors';
 
+import authRouter from './routes/auth.js';
+import { requireAuth } from './auth.js';
 import shopsRouter from './routes/shops.js';
 import dailyIncomeRouter from './routes/dailyIncome.js';
 import dailyExpenseRouter from './routes/dailyExpense.js';
@@ -16,6 +18,9 @@ dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+app.use('/api/auth', authRouter);
+app.use('/api', requireAuth);
 
 app.use('/api/shops', shopsRouter);
 app.use('/api/daily-income', dailyIncomeRouter);

@@ -1,11 +1,23 @@
+import { getToken, clearToken } from './auth';
+
 const BASE = '/api';
 
 async function request(path, options = {}) {
   const isForm = options.body instanceof FormData;
-  const res = await fetch(`${BASE}${path}`, {
-    ...options,
-    headers: isForm ? undefined : { 'Content-Type': 'application/json', ...options.headers },
-  });
+  const token = getToken();
+  const headers = {
+    ...(isForm ? {} : { 'Content-Type': 'application/json' }),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...options.headers,
+  };
+  const res = await fetch(`${BASE}${path}`, { ...options, headers });
+
+  if (res.status === 401) {
+    clearToken();
+    window.location.reload();
+    throw new Error('Oturum sona erdi, tekrar giriş yapılıyor');
+  }
+
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     throw new Error(body?.error || `${res.status} ${res.statusText}`);
