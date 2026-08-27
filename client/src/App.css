@@ -1,16 +1,26 @@
 * { box-sizing: border-box; }
 
+html {
+  overscroll-behavior-y: contain;
+}
+
 body {
   margin: 0;
   font-family: system-ui, sans-serif;
   background: #f4f5f7;
   color: #1a1a1a;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .app {
   max-width: 900px;
   margin: 0 auto;
-  padding: 24px 16px 64px;
+  padding: calc(24px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(64px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
 }
 
 h1 {
@@ -22,14 +32,19 @@ h1 {
   display: flex;
   gap: 8px;
   margin-bottom: 20px;
+  flex-wrap: wrap;
 }
 
 .tabs button {
-  padding: 8px 16px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 8px 12px;
   border: 1px solid #ccc;
   background: #fff;
   border-radius: 6px;
   cursor: pointer;
+  white-space: nowrap;
+  font-size: 0.9rem;
 }
 
 .tabs button.active {
