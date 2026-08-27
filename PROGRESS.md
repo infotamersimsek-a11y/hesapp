@@ -140,6 +140,21 @@ Kullanıcı Findeks'ten kredi kartı raporu PDF'i yükleyip kartların otomatik 
 - 2026-08-27: `vercel --prod` ile deploy edildi. **Canlı adres: https://hesapalr.vercel.app** — test edildi, `/api/shops` ve `/api/credit-cards` gerçek Neon verisini doğru döndürdü, ana sayfa (React arayüzü) 200 döndü.
 - **Sıradaki potansiyel iş:** Kullanıcı isterse bu Vercel adresini kendi alan adına (domain) bağlayabilir (Vercel ayarlarından custom domain ekleme, DNS CNAME/A kaydı) — public_html'e zip atmaya hiç gerek kalmadı, tamamen Vercel üzerinden yayında.
 
+## GitHub'a Taşındı — Otomatik Deploy Pipeline Kuruldu
+- 2026-08-27: Kullanıcı GitHub repo oluşturdu (`https://github.com/infotamersimsek-a11y/hesapp.git`) ve Vercel'i GitHub'a bağladı. **Proje git deposuna alındı** — daha önce git repo değildi (`git init`). Kök `.gitignore` eklendi (`node_modules`, `.env*`, `.neon`, `.vercel`, `.claude`, `.agents`, `skills-lock.json` — sırlar ve araç/tooling dosyaları hariç, sadece uygulama kodu commit'leniyor).
+- Git kullanıcı kimliği bu repoya özel (local, `--global` değil) ayarlandı: `smsktmr@gmail.com` / `Tamer`.
+- İlk commit + `git push -u origin main` ile GitHub'a yüklendi.
+- **Vercel projesi (`tamoeer/hesapalr`) `npx vercel git connect` ile bu GitHub reposuna bağlandı** — böylece `main`'e her push otomatik yeni production deploy'u tetikliyor (mevcut projeye bağlandı, env değişkenleri korunuyor; yeni/ayrı proje oluşmadı). Test edildi: bir commit push edildi, ~15sn içinde yeni deployment otomatik oluştu ve `Ready` oldu.
+- **Kullanıcı talebi (kalıcı kural, unutma):** Bundan sonraki her kod değişikliğinde `git add/commit/push` yapılacak — bu hem GitHub'da yedekli tutar hem Vercel'deki canlı siteyi otomatik günceller. Ayrı "deploy et" komutuna gerek yok, push yeterli.
+
+## iOS/Android PWA — Mobil "Ana Ekrana Ekle" İnce Ayarı
+- 2026-08-27: Kullanıcı isteği: telefonlarda tarayıcıdan "Ana Ekrana Ekle" ile uygulama modunda kusursuz çalışsın, tüm sekmeler test edilsin.
+- `client/index.html`: `apple-mobile-web-app-status-bar-style` (black-translucent — durum çubuğu içerikle uyumlu), `mobile-web-app-capable` (Android/Chrome için), `format-detection: telephone=no` (iOS'un sayısal tutarları otomatik telefon numarası linkine çevirmesini engeller — finans uygulaması için önemli, yoksa "50000" gibi tutarlar mavi altı çizili link gibi görünür), `viewport-fit=cover` (çentikli/Dynamic Island'lı telefonlarda güvenli alan desteği) eklendi.
+- `manifest.webmanifest`: `id`, `lang: "tr"`, `display_override: ["standalone","minimal-ui"]` eklendi (Chrome'un kurulum tutarlılığı için).
+- `App.css`: `env(safe-area-inset-*)` ile çentik/home-indicator alanlarına taşma önlendi, `overscroll-behavior-y: contain` ile iOS'ta sayfa "zıplama" efekti bastırıldı, butonlara `-webkit-tap-highlight-color: transparent` + `touch-action: manipulation` (gri tıklama flaşı yok, ~300ms dokunma gecikmesi yok — daha "native app" hissi). `.tabs` (Günlük/Aylık/Kredi Kartları) dar ekranda taşmasın diye `flex-wrap` + esnek buton genişliği eklendi.
+- **Sınırlama (dürüstçe belirtildi):** Bu ortamda gerçek iOS/Android cihaz ya da tarayıcı emülasyon aracı yok — değişiklikler PWA/mobil best-practice'lere göre kod/CSS seviyesinde yapıldı ve build/manifest doğruluğu (geçerli JSON, doğru `Content-Type: application/manifest+json`, meta etiketlerin canlı sitede çıktığı) test edildi, ama gerçek cihazda görsel/dokunma testi yapılamadı. **Kullanıcının telefonundan gerçek "Ana Ekrana Ekle" testi yapıp geri bildirmesi gerekiyor.**
+- Değişiklikler commit edilip push edildi, Vercel otomatik deploy etti, canlı sitede meta etiketler + manifest doğrulandı (`curl` ile).
+
 ## Proje Yapısı
 ```
 hesapalr/
