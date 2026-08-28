@@ -199,6 +199,21 @@ Kullanıcı Findeks'ten kredi kartı raporu PDF'i yükleyip kartların otomatik 
 - Local'de tam uçtan-uca test edildi: Kredi Kartı (son4 hane, kesim/son ödeme günü) + Esnek Hesap (günsüz, `due_soon:false`, çökmedi) + borç güncelleme sonrası ödeme geçmişi (`delta:2000`) doğru hesaplandı, aynı banka+sahip altında gruplandı. Test verileri temizlendi.
 - Build temiz, commit+push edildi, Vercel otomatik deploy etti. Canlıda (`hesapalr.vercel.app`) doğrulandı: kart listesi boş (temiz sayfa), dükkanlar (`Hacıoğulları`, `Çıtır Tatlı`) hâlâ duruyor.
 - **Kullanıcı için sıradaki adım:** Artık tüm gelir/gider/kredi kartı verisi sıfır — gerçek verileri yeni yapıya göre (banka, sahip, tür, son 4 hane) yeniden girmesi gerekiyor.
+- 2026-08-29: Kullanıcı gerçek kartları girmeye başladı (canlıda doğrulandı): Ziraat Bankası, Yapı Kredi (Kredi Kartı + Esnek Hesap), Kuveyt Türk, Albaraka (İhtiyaç Kredisi), Garanti BBVA (2 kart) — hepsi "Tamer" altında. Sonraki çalışmalarda bu veriye hiç dokunulmadı, hepsi sağlam duruyor.
+
+## Geriye Dönük Kayıt Kuralı Gevşetildi (24 Saat + Yönetici Şifresi) + Kart Ek Özellikleri
+- 2026-08-29: Kullanıcı isteği: "sadece bugün" kuralı çok katıydı — **bugün ve dün** (24 saat içi) şifresiz serbest olsun, daha eskisi için **yönetici şifresi** ("Asi Zarok") istensin.
+- `server/src/dateGuard.js`: `assertIsToday` → `assertDateAllowed(date, adminPassword)` oldu. Kural: gelecek tarih her zaman yasak (parola ile bile açılmıyor — mantıksız olurdu). Bugün/dün her zaman serbest. Daha eski tarih: `ADMIN_PASSWORD` env değişkeniyle `crypto.timingSafeEqual` karşılaştırması, tutmazsa 403. **Silme kuralı değişmedi** — yönetici şifresiyle eklenen geçmiş kayıt bile silinemiyor, sadece bugünün kaydı silinebiliyor (denetim ilkesi korundu).
+- `dailyIncome.js`/`dailyExpense.js` POST+PUT route'ları yeni fonksiyona geçti, `admin_password` body alanını okuyorlar.
+- `client/src/DailyTab.jsx`: tarih seçici geri geldi (`max=bugün`, geçmişe sınır yok). Seçilen tarih bugün/dün değilse kırmızı çerçeveli bir "Yönetici şifresi" kutusu beliriyor, formlar gönderirken `admin_password`'ü ekliyor. `VoiceEntry` ve `ReceiptExpense` bileşenlerine de `adminPassword` prop'u eklendi (sesle/foto ile geçmişe kayıt da aynı kurala tabi).
+- Env: `ADMIN_PASSWORD=Asi Zarok` hem `server/.env` hem Vercel production'a eklendi.
+- Local test: bugün şifresiz kabul (201), 3 gün önce şifresiz red (403), 3 gün önce yanlış şifre red (403), 3 gün önce doğru şifre kabul (201) — hepsi doğrulandı. Test satırları temizlendi (geçmiş tarihli olanlar API'den silinemediği için doğrudan DB'den temizlendi, kasıtlı).
+- **Ek istekler aynı oturumda geldi, hepsi eklendi:**
+  - **Kart ekran görüntüsünden borç okuma:** `POST /api/ai/card-balance` (Groq vision, aynı `qwen/qwen3.8-27b`) — banka uygulaması ekran görüntüsünden güncel borç/bakiye tutarını okuyor. `CreditCardsTab`'da her borç kaleminin yanına küçük 📷 butonu eklendi (`BalancePhoto` bileşeni) — fotoğraf yüklenince "Borcu Güncelle" tutar kutusunu otomatik dolduruyor, kullanıcı yine de "Borcu Güncelle"ye basarak onaylıyor (otomatik kaydetme yok).
+  - **Kartta son 3 gün harcama gösterimi:** `creditCards.js`'e `recentCharges()` eklendi — o karta bağlı (`credit_card_id`), son 3 gün içindeki `daily_expense` kayıtlarını listeliyor. UI'da her kart kaleminin altında "[Banka] kartından X ₺ ödeme yapıldı — kategori — tarih" şeklinde gösteriliyor.
+  - **Tedarikçi firma seçeneği:** Kart Ekle formuna bankaların yanına ikinci bir buton grubu eklendi: Lale Gıda, Örgün Gıda, Ambalaj, Coca-Cola, Alpedo (+ Diğer) — tedarikçiye olan borç da aynı ekrandan, aynı yapıda takip edilebiliyor. Tür listesine "Cari Hesap" eklendi (tedarikçi borçları için uygun terim).
+- `ai.js` içinde tekrar eden Groq vision çağrı kodu `visionExtract()` ortak fonksiyonuna çıkarıldı (receipt-expense ve card-balance ikisi de kullanıyor).
+- Uçtan uca test edildi (kart oluştur → gidere bağla → `recent_charges`'ta doğru göründü → vision endpoint gerçek görselle 200 döndü). Build temiz, commit+push, Vercel otomatik deploy etti. **Canlıda doğrulandı — kullanıcının önceden girdiği 7 gerçek kart hiç etkilenmedi, hepsi duruyor.**
 
 ## Proje Yapısı
 ```
