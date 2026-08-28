@@ -440,6 +440,14 @@ li button {
   margin-bottom: 10px;
 }
 
+.debt-item {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-top: 10px;
+}
+
 .label-debt,
 .label-due,
 .label-statement {

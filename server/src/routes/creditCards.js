@@ -16,6 +16,7 @@ function clampDay(year, monthIndex, day) {
 }
 
 function nextOccurrence(day, from = new Date()) {
+  if (day == null) return null;
   const todayMidnight = new Date(from.getFullYear(), from.getMonth(), from.getDate());
   let year = from.getFullYear();
   let monthIndex = from.getMonth();
@@ -33,6 +34,7 @@ function nextOccurrence(day, from = new Date()) {
 }
 
 function daysUntil(date, from = new Date()) {
+  if (!date) return null;
   const todayMidnight = new Date(from.getFullYear(), from.getMonth(), from.getDate());
   return Math.round((date - todayMidnight) / 86400000);
 }
@@ -43,11 +45,24 @@ function withComputed(card) {
   const daysUntilDue = daysUntil(nextDueDate);
   return {
     ...card,
-    next_statement_date: toDateStr(nextStatementDate),
-    next_due_date: toDateStr(nextDueDate),
+    next_statement_date: nextStatementDate ? toDateStr(nextStatementDate) : null,
+    next_due_date: nextDueDate ? toDateStr(nextDueDate) : null,
     days_until_due: daysUntilDue,
-    due_soon: daysUntilDue <= 3,
+    due_soon: daysUntilDue !== null && daysUntilDue <= 3,
   };
+}
+
+async function paymentHistory(cardId) {
+  const { rows } = await pool.query(
+    `SELECT amount, recorded_at FROM credit_card_debt_log WHERE credit_card_id=$1 ORDER BY recorded_at DESC LIMIT 6`,
+    [cardId]
+  );
+  const entries = rows.map((r) => ({ amount: Number(r.amount), recorded_at: r.recorded_at }));
+  return entries.slice(0, 5).map((e, i) => {
+    const prev = entries[i + 1];
+    const delta = prev ? Number((prev.amount - e.amount).toFixed(2)) : null;
+    return { ...e, delta };
+  });
 }
 
 async function reconciliationFor(cardId, debtNow) {
@@ -90,31 +105,36 @@ router.get('/', async (req, res) => {
     rows.map(async (card) => ({
       ...withComputed(card),
       reconciliation: await reconciliationFor(card.id, Number(card.debt_amount)),
+      history: await paymentHistory(card.id),
     }))
   );
-  withCalc.sort((a, b) => a.days_until_due - b.days_until_due);
   res.json(withCalc);
 });
 
 router.post('/', async (req, res) => {
-  const { name, debt_amount, statement_day, due_day, note } = req.body;
+  const { name, owner, type, last4, debt_amount, statement_day, due_day, note } = req.body;
   const { rows } = await pool.query(
-    `INSERT INTO credit_cards (name, debt_amount, statement_day, due_day, note) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-    [name, debt_amount ?? 0, statement_day, due_day, note ?? null]
+    `INSERT INTO credit_cards (name, owner, type, last4, debt_amount, statement_day, due_day, note)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+    [name, owner, type, last4 || null, debt_amount ?? 0, statement_day || null, due_day || null, note ?? null]
   );
   const card = rows[0];
   await pool.query(
     `INSERT INTO credit_card_debt_log (credit_card_id, amount) VALUES ($1, $2)`,
     [card.id, card.debt_amount]
   );
-  res.status(201).json({ ...withComputed(card), reconciliation: await reconciliationFor(card.id, Number(card.debt_amount)) });
+  res.status(201).json({
+    ...withComputed(card),
+    reconciliation: await reconciliationFor(card.id, Number(card.debt_amount)),
+    history: await paymentHistory(card.id),
+  });
 });
 
 router.put('/:id', async (req, res) => {
-  const { name, debt_amount, statement_day, due_day, note } = req.body;
+  const { name, owner, type, last4, debt_amount, statement_day, due_day, note } = req.body;
   const { rows } = await pool.query(
-    `UPDATE credit_cards SET name=$1, debt_amount=$2, statement_day=$3, due_day=$4, note=$5 WHERE id=$6 RETURNING *`,
-    [name, debt_amount, statement_day, due_day, note ?? null, req.params.id]
+    `UPDATE credit_cards SET name=$1, owner=$2, type=$3, last4=$4, debt_amount=$5, statement_day=$6, due_day=$7, note=$8 WHERE id=$9 RETURNING *`,
+    [name, owner, type, last4 || null, debt_amount, statement_day || null, due_day || null, note ?? null, req.params.id]
   );
   if (!rows.length) return res.status(404).json({ error: 'not found' });
   const card = rows[0];
@@ -122,7 +142,11 @@ router.put('/:id', async (req, res) => {
     `INSERT INTO credit_card_debt_log (credit_card_id, amount) VALUES ($1, $2)`,
     [card.id, card.debt_amount]
   );
-  res.json({ ...withComputed(card), reconciliation: await reconciliationFor(card.id, Number(card.debt_amount)) });
+  res.json({
+    ...withComputed(card),
+    reconciliation: await reconciliationFor(card.id, Number(card.debt_amount)),
+    history: await paymentHistory(card.id),
+  });
 });
 
 router.delete('/:id', async (req, res) => {

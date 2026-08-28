@@ -7,17 +7,29 @@ import { getBankColor, getContrastText, TURKISH_BANKS } from './bankColors';
 const dateFormatter = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
 const formatDate = (isoDate) => dateFormatter.format(new Date(isoDate));
 
-const PRODUCT_TYPES = ['Kredi Kartı', 'Esnek Hesap', 'İhtiyaç Kredisi', 'Diğer'];
+const OWNERS = ['Tamer', 'Ramazan'];
+const CARD_TYPES = ['Kredi Kartı', 'Esnek Hesap', 'İhtiyaç Kredisi', 'Diğer'];
+
+function groupCards(cards) {
+  const map = new Map();
+  for (const c of cards) {
+    const key = `${c.name}||${c.owner}`;
+    if (!map.has(key)) map.set(key, { name: c.name, owner: c.owner, items: [] });
+    map.get(key).items.push(c);
+  }
+  return Array.from(map.values());
+}
 
 function DebtActions({ card, onDone }) {
   const [amount, setAmount] = useState(card.debt_amount);
 
-  const setNewTotal = async (e) => {
-    e.preventDefault();
-    if (amount === '') return;
+  const save = async (newDebt) => {
     await api.creditCardUpdate(card.id, {
       name: card.name,
-      debt_amount: amount,
+      owner: card.owner,
+      type: card.type,
+      last4: card.last4,
+      debt_amount: newDebt,
       statement_day: card.statement_day,
       due_day: card.due_day,
       note: card.note,
@@ -25,18 +37,16 @@ function DebtActions({ card, onDone }) {
     onDone();
   };
 
+  const setNewTotal = async (e) => {
+    e.preventDefault();
+    if (amount === '') return;
+    await save(amount);
+  };
+
   const recordPayment = async () => {
     const paid = Number(amount);
     if (!paid) return;
-    const newDebt = Number(card.debt_amount) - paid;
-    await api.creditCardUpdate(card.id, {
-      name: card.name,
-      debt_amount: newDebt,
-      statement_day: card.statement_day,
-      due_day: card.due_day,
-      note: card.note,
-    });
-    onDone();
+    await save(Number((Number(card.debt_amount) - paid).toFixed(2)));
   };
 
   return (
@@ -52,11 +62,13 @@ export default function CreditCardsTab() {
   const [cards, setCards] = useState([]);
   const [bankChoice, setBankChoice] = useState(TURKISH_BANKS[0]);
   const [bankCustom, setBankCustom] = useState('');
-  const [productChoice, setProductChoice] = useState(PRODUCT_TYPES[0]);
-  const [productCustom, setProductCustom] = useState('');
+  const [owner, setOwner] = useState(OWNERS[0]);
+  const [type, setType] = useState(CARD_TYPES[0]);
+  const [typeCustom, setTypeCustom] = useState('');
+  const [last4, setLast4] = useState('');
   const [debtAmount, setDebtAmount] = useState('');
-  const [statementDay, setStatementDay] = useState('1');
-  const [dueDay, setDueDay] = useState('10');
+  const [statementDay, setStatementDay] = useState('');
+  const [dueDay, setDueDay] = useState('');
   const [note, setNote] = useState('');
 
   const reload = async () => {
@@ -69,28 +81,33 @@ export default function CreditCardsTab() {
   const addCard = async (e) => {
     e.preventDefault();
     const bankName = bankChoice === 'Diğer' ? bankCustom : bankChoice;
-    const productName = productChoice === 'Diğer' ? productCustom : productChoice;
-    if (!bankName || !statementDay || !dueDay) return;
-    const name = productName ? `${bankName} - ${productName}` : bankName;
+    const typeName = type === 'Diğer' ? typeCustom : type;
+    if (!bankName || !typeName) return;
     await api.creditCardCreate({
-      name,
+      name: bankName,
+      owner,
+      type: typeName,
+      last4: last4 || null,
       debt_amount: debtAmount || 0,
-      statement_day: statementDay,
-      due_day: dueDay,
+      statement_day: statementDay || null,
+      due_day: dueDay || null,
       note,
     });
     setBankChoice(TURKISH_BANKS[0]);
     setBankCustom('');
-    setProductChoice(PRODUCT_TYPES[0]);
-    setProductCustom('');
+    setOwner(OWNERS[0]);
+    setType(CARD_TYPES[0]);
+    setTypeCustom('');
+    setLast4('');
     setDebtAmount('');
-    setStatementDay('1');
-    setDueDay('10');
+    setStatementDay('');
+    setDueDay('');
     setNote('');
     reload();
   };
 
   const totalDebt = cards.reduce((s, c) => s + Number(c.debt_amount), 0);
+  const groups = groupCards(cards);
 
   return (
     <div>
@@ -129,20 +146,34 @@ export default function CreditCardsTab() {
           {bankChoice === 'Diğer' && (
             <input type="text" placeholder="Banka adı" value={bankCustom} onChange={(e) => setBankCustom(e.target.value)} required />
           )}
-          <select value={productChoice} onChange={(e) => setProductChoice(e.target.value)}>
-            {PRODUCT_TYPES.map((p) => <option key={p} value={p}>{p}</option>)}
-          </select>
-          {productChoice === 'Diğer' && (
-            <input type="text" placeholder="Ürün adı" value={productCustom} onChange={(e) => setProductCustom(e.target.value)} required />
-          )}
-          <input type="number" step="0.01" placeholder="Güncel borç" value={debtAmount} onChange={(e) => setDebtAmount(e.target.value)} />
+
           <label className="inline-label">
-            Hesap kesim günü (1-31)
-            <input type="number" min="1" max="31" value={statementDay} onChange={(e) => setStatementDay(e.target.value)} required />
+            Kime ait
+            <select value={owner} onChange={(e) => setOwner(e.target.value)}>
+              {OWNERS.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </label>
+
+          <label className="inline-label">
+            Tür
+            <select value={type} onChange={(e) => setType(e.target.value)}>
+              {CARD_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </label>
+          {type === 'Diğer' && (
+            <input type="text" placeholder="Tür adı" value={typeCustom} onChange={(e) => setTypeCustom(e.target.value)} required />
+          )}
+
+          <input type="text" placeholder="Kartın son 4 hanesi (opsiyonel)" maxLength={4} value={last4} onChange={(e) => setLast4(e.target.value.replace(/\D/g, ''))} />
+          <input type="number" step="0.01" placeholder="Güncel borç" value={debtAmount} onChange={(e) => setDebtAmount(e.target.value)} />
+
+          <label className="inline-label">
+            Hesap kesim günü (opsiyonel, 1-31)
+            <input type="number" min="1" max="31" value={statementDay} onChange={(e) => setStatementDay(e.target.value)} />
           </label>
           <label className="inline-label">
-            Son ödeme günü (1-31)
-            <input type="number" min="1" max="31" value={dueDay} onChange={(e) => setDueDay(e.target.value)} required />
+            Son ödeme günü (opsiyonel, 1-31)
+            <input type="number" min="1" max="31" value={dueDay} onChange={(e) => setDueDay(e.target.value)} />
           </label>
           <input type="text" placeholder="Not (opsiyonel)" value={note} onChange={(e) => setNote(e.target.value)} />
           <button type="submit">Ekle</button>
@@ -150,29 +181,43 @@ export default function CreditCardsTab() {
       </section>
 
       <div className="card-list">
-        {cards.length === 0 && <p className="hint">Henüz kart yok.</p>}
-        {cards.map((c) => {
-          const bankColor = getBankColor(c.name);
+        {groups.length === 0 && <p className="hint">Henüz kart yok.</p>}
+        {groups.map((g) => {
+          const bankColor = getBankColor(g.name);
           const textColor = getContrastText(bankColor);
+          const anyDueSoon = g.items.some((c) => c.due_soon);
           return (
-          <div
-            className={`credit-card${c.due_soon ? ' due-soon' : ''}`}
-            style={{ background: bankColor, color: textColor }}
-            key={c.id}
-          >
-            <div className="credit-card-header">
-              <strong style={{ color: textColor }}>{c.name}</strong>
-              {c.due_soon && <span className="backdated-flag">Son ödemeye {c.days_until_due} gün</span>}
-              <button className="delete-link" onClick={() => api.creditCardDelete(c.id).then(reload)}>Sil</button>
+            <div
+              className={`credit-card${anyDueSoon ? ' due-soon' : ''}`}
+              style={{ background: bankColor, color: textColor }}
+              key={`${g.name}||${g.owner}`}
+            >
+              <div className="credit-card-header">
+                <strong style={{ color: textColor }}>{g.name} — {g.owner}</strong>
+              </div>
+
+              {g.items.map((c) => (
+                <div className="debt-item" key={c.id}>
+                  <div className="credit-card-header">
+                    <strong style={{ color: textColor }}>{c.type}{c.last4 ? ` •••• ${c.last4}` : ''}</strong>
+                    {c.due_soon && <span className="backdated-flag">Son ödemeye {c.days_until_due} gün</span>}
+                    <button className="delete-link" onClick={() => api.creditCardDelete(c.id).then(reload)}>Sil</button>
+                  </div>
+                  <div className="credit-card-body" style={{ color: textColor }}>
+                    <span className="label-debt">Borç: {formatMoney(c.debt_amount)}</span>
+                    {c.statement_day && <span className="label-statement">Hesap Kesim: {c.statement_day} (sıradaki: {formatDate(c.next_statement_date)})</span>}
+                    {c.due_day && <span className="label-due">Son Ödeme: {c.due_day} (sıradaki: {formatDate(c.next_due_date)})</span>}
+                    {c.note && <span>Not: {c.note}</span>}
+                    {c.history.filter((h) => h.delta != null).slice(0, 2).map((h, i) => (
+                      <span key={i} className="hint" style={{ color: textColor, opacity: 0.85 }}>
+                        {h.delta > 0 ? `Ödeme: ${formatMoney(h.delta)}` : `Borç artışı: ${formatMoney(-h.delta)}`} — {formatDate(h.recorded_at)}
+                      </span>
+                    ))}
+                  </div>
+                  <DebtActions card={c} onDone={reload} />
+                </div>
+              ))}
             </div>
-            <div className="credit-card-body" style={{ color: textColor }}>
-              <span className="label-debt">Borç: {formatMoney(c.debt_amount)}</span>
-              <span className="label-statement">Hesap Kesim: {c.statement_day} (sıradaki: {formatDate(c.next_statement_date)})</span>
-              <span className="label-due">Son Ödeme: {c.due_day} (sıradaki: {formatDate(c.next_due_date)})</span>
-              {c.note && <span>Not: {c.note}</span>}
-            </div>
-            <DebtActions card={c} onDone={reload} />
-          </div>
           );
         })}
       </div>
