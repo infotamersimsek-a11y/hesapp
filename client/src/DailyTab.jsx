@@ -5,12 +5,17 @@ import ReceiptExpense from './ReceiptExpense';
 import ShopSwitcher from './ShopSwitcher';
 import { useLiveRefresh } from './useLiveRefresh';
 
-function today() {
-  const d = new Date();
+function formatYMD(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+function today() { return formatYMD(new Date()); }
+function yesterday() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return formatYMD(d);
 }
 const isToday = (isoDate) => isoDate.slice(0, 10) === today();
 const EXPENSE_CATEGORIES = ['Yemek', 'Temizlik', 'Kişisel Giderler', 'Ekstra Giderler', 'Ürün Alımı', 'Diğer'];
@@ -34,6 +39,8 @@ function groupByDate(entries) {
 
 export default function DailyTab({ shops }) {
   const [shopId, setShopId] = useState(shops[0]?.id ?? '');
+  const [date, setDate] = useState(today());
+  const [adminPassword, setAdminPassword] = useState('');
   const [incomeMethod, setIncomeMethod] = useState('nakit');
   const [incomeAmount, setIncomeAmount] = useState('');
   const [incomeNote, setIncomeNote] = useState('');
@@ -44,6 +51,9 @@ export default function DailyTab({ shops }) {
   const [allIncomes, setAllIncomes] = useState([]);
   const [allExpenses, setAllExpenses] = useState([]);
   const [cards, setCards] = useState([]);
+  const [error, setError] = useState(null);
+
+  const isBackdated = date !== today() && date !== yesterday();
 
   const reload = async () => {
     if (!shopId) return;
@@ -63,27 +73,38 @@ export default function DailyTab({ shops }) {
   const addIncome = async (e) => {
     e.preventDefault();
     if (!incomeAmount) return;
-    await api.dailyIncomeCreate({ shop_id: shopId, date: today(), method: incomeMethod, amount: incomeAmount, note: incomeNote });
-    setIncomeAmount('');
-    setIncomeNote('');
-    reload();
+    setError(null);
+    try {
+      await api.dailyIncomeCreate({ shop_id: shopId, date, method: incomeMethod, amount: incomeAmount, note: incomeNote, admin_password: isBackdated ? adminPassword : undefined });
+      setIncomeAmount('');
+      setIncomeNote('');
+      reload();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   const addExpense = async (e) => {
     e.preventDefault();
     if (!expenseAmount) return;
-    await api.dailyExpenseCreate({
-      shop_id: shopId,
-      date: today(),
-      category: expenseCategory,
-      amount: expenseAmount,
-      note: expenseNote,
-      credit_card_id: expenseCardId || null,
-    });
-    setExpenseAmount('');
-    setExpenseNote('');
-    setExpenseCardId('');
-    reload();
+    setError(null);
+    try {
+      await api.dailyExpenseCreate({
+        shop_id: shopId,
+        date,
+        category: expenseCategory,
+        amount: expenseAmount,
+        note: expenseNote,
+        credit_card_id: expenseCardId || null,
+        admin_password: isBackdated ? adminPassword : undefined,
+      });
+      setExpenseAmount('');
+      setExpenseNote('');
+      setExpenseCardId('');
+      reload();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   const incomeDays = groupByDate(allIncomes);
@@ -93,7 +114,22 @@ export default function DailyTab({ shops }) {
     <div>
       <ShopSwitcher shops={shops} shopId={shopId} onChange={setShopId} />
 
-      <p className="hint">Bugün: <strong>{formatDate(today())}</strong> — kayıtlar sadece bugüne girilir, geçmişe/geleceğe kayıt eklenemez.</p>
+      <div className="filters">
+        <input type="date" value={date} max={today()} onChange={(e) => setDate(e.target.value)} />
+        <span className="hint">{formatDate(date)}{isBackdated && ' — geçmişe dönük'}</span>
+      </div>
+
+      {isBackdated && (
+        <div className="admin-gate">
+          <input
+            type="password"
+            placeholder="Yönetici şifresi (24 saatten eski tarih için gerekli)"
+            value={adminPassword}
+            onChange={(e) => setAdminPassword(e.target.value)}
+          />
+        </div>
+      )}
+      {error && <p className="bad">{error}</p>}
 
       <div className="grid">
         <section>
@@ -123,14 +159,14 @@ export default function DailyTab({ shops }) {
             </select>
             <button type="submit">Ekle</button>
           </form>
-          <ReceiptExpense shopId={shopId} date={today()} onSaved={reload} />
+          <ReceiptExpense shopId={shopId} date={date} adminPassword={isBackdated ? adminPassword : undefined} onSaved={reload} />
         </section>
       </div>
 
       <section className="voice-section">
         <h3>Sesle Gelir/Gider Ekle</h3>
         <p className="hint">Mikrofona bas, konuş (örn: "500 lira nakit geldi, 200 lira pos geldi, 50 lira temizlik gideri oldu"), çıkan işlemleri kontrol edip onayla.</p>
-        <VoiceEntry shopId={shopId} date={today()} onSaved={reload} />
+        <VoiceEntry shopId={shopId} date={date} adminPassword={isBackdated ? adminPassword : undefined} onSaved={reload} />
       </section>
 
       <div className="grid history-grid">

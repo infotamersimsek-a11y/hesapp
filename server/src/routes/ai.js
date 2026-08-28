@@ -69,14 +69,8 @@ router.post('/voice-entry', upload.single('audio'), async (req, res) => {
   res.json({ transcript, transactions });
 });
 
-const RECEIPT_SYSTEM_PROMPT = `Bir dekont veya fiş fotoğrafına bakıyorsun (ürün/mal alımı için yapılmış bir ödeme belgesi). Firma/tedarikçi adını ve TOPLAM tutarı bul. SADECE şu JSON formatında döndür, başka hiçbir metin ekleme:
-{"vendor_name": string veya null, "amount": sayı, "note": dekont üzerinde tarih/açıklama gibi kısa bilgi veya null}
-Tutarı sadece sayı olarak yaz (₺, TL gibi birimleri çıkar). Emin değilsen dekontta en belirgin/toplam tutarı seç.`;
-
-router.post('/receipt-expense', upload.single('image'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'image dosyası gerekli' });
-  const dataUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
-
+async function visionExtract(buffer, mimetype, systemPrompt) {
+  const dataUrl = `data:${mimetype};base64,${buffer.toString('base64')}`;
   const r = await fetch(`${GROQ_BASE}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -90,7 +84,7 @@ router.post('/receipt-expense', upload.single('image'), async (req, res) => {
         {
           role: 'user',
           content: [
-            { type: 'text', text: RECEIPT_SYSTEM_PROMPT },
+            { type: 'text', text: systemPrompt },
             { type: 'image_url', image_url: { url: dataUrl } }
           ]
         }
@@ -99,7 +93,26 @@ router.post('/receipt-expense', upload.single('image'), async (req, res) => {
   });
   if (!r.ok) throw new Error(`Groq görsel hatası: ${r.status} ${await r.text()}`);
   const data = await r.json();
-  const draft = JSON.parse(data.choices[0].message.content);
+  return JSON.parse(data.choices[0].message.content);
+}
+
+const RECEIPT_SYSTEM_PROMPT = `Bir dekont veya fiş fotoğrafına bakıyorsun (ürün/mal alımı için yapılmış bir ödeme belgesi). Firma/tedarikçi adını ve TOPLAM tutarı bul. SADECE şu JSON formatında döndür, başka hiçbir metin ekleme:
+{"vendor_name": string veya null, "amount": sayı, "note": dekont üzerinde tarih/açıklama gibi kısa bilgi veya null}
+Tutarı sadece sayı olarak yaz (₺, TL gibi birimleri çıkar). Emin değilsen dekontta en belirgin/toplam tutarı seç.`;
+
+router.post('/receipt-expense', upload.single('image'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'image dosyası gerekli' });
+  const draft = await visionExtract(req.file.buffer, req.file.mimetype, RECEIPT_SYSTEM_PROMPT);
+  res.json({ draft });
+});
+
+const CARD_BALANCE_SYSTEM_PROMPT = `Bir banka/kredi kartı mobil uygulaması ekran görüntüsüne bakıyorsun. Güncel borç veya bakiye tutarını bul (genelde "Güncel Borç", "Ekstre Borcu", "Bakiye" gibi bir etiketin yanında yazar). SADECE şu JSON formatında döndür, başka hiçbir metin ekleme:
+{"amount": sayı, "note": ekranda görünen ek bilgi (tarih, kart adı vb) veya null}
+Tutarı sadece sayı olarak yaz (₺, TL gibi birimleri çıkar). Birden fazla tutar varsa en belirgin/güncel borç olanı seç.`;
+
+router.post('/card-balance', upload.single('image'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'image dosyası gerekli' });
+  const draft = await visionExtract(req.file.buffer, req.file.mimetype, CARD_BALANCE_SYSTEM_PROMPT);
   res.json({ draft });
 });
 

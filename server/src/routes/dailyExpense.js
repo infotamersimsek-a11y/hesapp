@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
-import { todayStr, assertIsToday } from '../dateGuard.js';
+import { todayStr, assertDateAllowed } from '../dateGuard.js';
 
 const router = Router();
 
@@ -31,8 +31,8 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { shop_id, date, category, amount, note, credit_card_id } = req.body;
-  assertIsToday(date);
+  const { shop_id, date, category, amount, note, credit_card_id, admin_password } = req.body;
+  assertDateAllowed(date, admin_password);
   const { rows } = await pool.query(
     `INSERT INTO daily_expense (shop_id, date, category, amount, note, credit_card_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
     [shop_id, date, category, amount, note ?? null, credit_card_id || null]
@@ -41,8 +41,8 @@ router.post('/', async (req, res) => {
 });
 
 router.put('/:id', async (req, res) => {
-  const { shop_id, date, category, amount, note, credit_card_id } = req.body;
-  assertIsToday(date);
+  const { shop_id, date, category, amount, note, credit_card_id, admin_password } = req.body;
+  assertDateAllowed(date, admin_password);
   const { rows } = await pool.query(
     `UPDATE daily_expense SET shop_id=$1, date=$2, category=$3, amount=$4, note=$5, credit_card_id=$6 WHERE id=$7 RETURNING *`,
     [shop_id, date, category, amount, note ?? null, credit_card_id || null, req.params.id]

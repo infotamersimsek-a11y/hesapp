@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api } from './api';
 
-export default function ReceiptExpense({ shopId, date, onSaved }) {
+export default function ReceiptExpense({ shopId, date, adminPassword, onSaved }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [draft, setDraft] = useState(null);
@@ -37,6 +37,7 @@ export default function ReceiptExpense({ shopId, date, onSaved }) {
         category: 'Ürün Alımı',
         amount: draft.amount,
         note: draft.note,
+        admin_password: adminPassword,
       });
       setDraft(null);
       onSaved?.();

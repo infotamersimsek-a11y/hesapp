@@ -65,6 +65,16 @@ async function paymentHistory(cardId) {
   });
 }
 
+async function recentCharges(cardId) {
+  const since = new Date();
+  since.setDate(since.getDate() - 3);
+  const { rows } = await pool.query(
+    `SELECT amount, category AS label, date, note FROM daily_expense WHERE credit_card_id=$1 AND date >= $2 ORDER BY date DESC, id DESC`,
+    [cardId, toDateStr(since)]
+  );
+  return rows.map((r) => ({ amount: Number(r.amount), label: r.label, date: r.date, note: r.note }));
+}
+
 async function reconciliationFor(cardId, debtNow) {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -106,6 +116,7 @@ router.get('/', async (req, res) => {
       ...withComputed(card),
       reconciliation: await reconciliationFor(card.id, Number(card.debt_amount)),
       history: await paymentHistory(card.id),
+      recent_charges: await recentCharges(card.id),
     }))
   );
   res.json(withCalc);
@@ -127,6 +138,7 @@ router.post('/', async (req, res) => {
     ...withComputed(card),
     reconciliation: await reconciliationFor(card.id, Number(card.debt_amount)),
     history: await paymentHistory(card.id),
+    recent_charges: await recentCharges(card.id),
   });
 });
 
@@ -146,6 +158,7 @@ router.put('/:id', async (req, res) => {
     ...withComputed(card),
     reconciliation: await reconciliationFor(card.id, Number(card.debt_amount)),
     history: await paymentHistory(card.id),
+    recent_charges: await recentCharges(card.id),
   });
 });
 

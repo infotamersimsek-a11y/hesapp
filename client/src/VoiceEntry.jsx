@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { api } from './api';
 
-export default function VoiceEntry({ shopId, date, onSaved }) {
+export default function VoiceEntry({ shopId, date, adminPassword, onSaved }) {
   const [recording, setRecording] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -65,9 +65,9 @@ export default function VoiceEntry({ shopId, date, onSaved }) {
     try {
       for (const d of drafts) {
         if (d.type === 'income') {
-          await api.dailyIncomeCreate({ shop_id: shopId, date, method: d.method || 'nakit', amount: d.amount, note: d.note });
+          await api.dailyIncomeCreate({ shop_id: shopId, date, method: d.method || 'nakit', amount: d.amount, note: d.note, admin_password: adminPassword });
         } else {
-          await api.dailyExpenseCreate({ shop_id: shopId, date, category: d.category || 'Diğer', amount: d.amount, note: d.note });
+          await api.dailyExpenseCreate({ shop_id: shopId, date, category: d.category || 'Diğer', amount: d.amount, note: d.note, admin_password: adminPassword });
         }
       }
       setDrafts(null);

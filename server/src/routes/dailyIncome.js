@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
-import { todayStr, assertIsToday } from '../dateGuard.js';
+import { todayStr, assertDateAllowed } from '../dateGuard.js';
 
 const router = Router();
 
@@ -31,8 +31,8 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { shop_id, date, method, amount, note } = req.body;
-  assertIsToday(date);
+  const { shop_id, date, method, amount, note, admin_password } = req.body;
+  assertDateAllowed(date, admin_password);
   const { rows } = await pool.query(
     `INSERT INTO daily_income (shop_id, date, method, amount, note) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
     [shop_id, date, method || 'nakit', amount, note ?? null]
@@ -41,8 +41,8 @@ router.post('/', async (req, res) => {
 });
 
 router.put('/:id', async (req, res) => {
-  const { shop_id, date, method, amount, note } = req.body;
-  assertIsToday(date);
+  const { shop_id, date, method, amount, note, admin_password } = req.body;
+  assertDateAllowed(date, admin_password);
   const { rows } = await pool.query(
     `UPDATE daily_income SET shop_id=$1, date=$2, method=$3, amount=$4, note=$5 WHERE id=$6 RETURNING *`,
     [shop_id, date, method || 'nakit', amount, note ?? null, req.params.id]

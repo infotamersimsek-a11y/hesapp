@@ -134,6 +134,18 @@ h1 {
   border: 1px solid #ccc;
 }
 
+.admin-gate {
+  margin-bottom: 16px;
+}
+
+.admin-gate input {
+  width: 100%;
+  max-width: 400px;
+  padding: 10px;
+  border: 2px solid #d32f2f;
+  border-radius: 6px;
+}
+
 .summary {
   display: flex;
   flex-wrap: wrap;
@@ -317,6 +329,25 @@ li button {
   font-size: 0.9rem;
 }
 
+.file-btn.small {
+  padding: 6px 10px;
+  font-size: 1rem;
+}
+
+.balance-photo {
+  display: inline-flex;
+  align-items: center;
+}
+
+.recent-charges {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+}
+
 .ai-entry > button.rec-active {
   background: #d32f2f;
 }
@@ -481,7 +512,8 @@ li button {
 
 .inline-update {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
 }
 

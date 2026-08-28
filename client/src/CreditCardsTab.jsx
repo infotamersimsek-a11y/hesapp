@@ -8,7 +8,8 @@ const dateFormatter = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 
 const formatDate = (isoDate) => dateFormatter.format(new Date(isoDate));
 
 const OWNERS = ['Tamer', 'Ramazan'];
-const CARD_TYPES = ['Kredi Kartı', 'Esnek Hesap', 'İhtiyaç Kredisi', 'Diğer'];
+const CARD_TYPES = ['Kredi Kartı', 'Esnek Hesap', 'İhtiyaç Kredisi', 'Cari Hesap', 'Diğer'];
+const SUPPLIER_COMPANIES = ['Lale Gıda', 'Örgün Gıda', 'Ambalaj', 'Coca-Cola', 'Alpedo'];
 
 function groupCards(cards) {
   const map = new Map();
@@ -18,6 +19,39 @@ function groupCards(cards) {
     map.get(key).items.push(c);
   }
   return Array.from(map.values());
+}
+
+function BalancePhoto({ onRead }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const onFile = async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append('image', file);
+      const result = await api.cardBalance(form);
+      onRead(String(result.draft.amount ?? ''));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <span className="balance-photo">
+      <label className="file-btn small">
+        {busy ? '...' : '📷'}
+        <input type="file" accept="image/*" capture="environment" onChange={onFile} disabled={busy} hidden />
+      </label>
+      {error && <span className="bad"> {error}</span>}
+    </span>
+  );
 }
 
 function DebtActions({ card, onDone }) {
@@ -54,6 +88,7 @@ function DebtActions({ card, onDone }) {
       <input type="number" step="0.01" placeholder="Tutar" value={amount} onChange={(e) => setAmount(e.target.value)} />
       <button type="submit" className="debt-update-btn">Borcu Güncelle</button>
       <button type="button" className="payment-btn" onClick={recordPayment}>Ödeme Yapıldı</button>
+      <BalancePhoto onRead={setAmount} />
     </form>
   );
 }
@@ -119,6 +154,7 @@ export default function CreditCardsTab() {
       <section>
         <h3>Kart Ekle</h3>
         <form onSubmit={addCard}>
+          <p className="hint">Banka</p>
           <div className="bank-picker">
             {TURKISH_BANKS.map((b) => {
               const bColor = getBankColor(b);
@@ -135,6 +171,23 @@ export default function CreditCardsTab() {
                 </button>
               );
             })}
+          </div>
+
+          <p className="hint">Firma</p>
+          <div className="bank-picker">
+            {SUPPLIER_COMPANIES.map((f) => {
+              const active = bankChoice === f;
+              return (
+                <button
+                  type="button"
+                  key={f}
+                  className={`bank-option${active ? ' active' : ''}`}
+                  onClick={() => setBankChoice(f)}
+                >
+                  {f}
+                </button>
+              );
+            })}
             <button
               type="button"
               className={`bank-option${bankChoice === 'Diğer' ? ' active' : ''}`}
@@ -144,7 +197,7 @@ export default function CreditCardsTab() {
             </button>
           </div>
           {bankChoice === 'Diğer' && (
-            <input type="text" placeholder="Banka adı" value={bankCustom} onChange={(e) => setBankCustom(e.target.value)} required />
+            <input type="text" placeholder="Banka / firma adı" value={bankCustom} onChange={(e) => setBankCustom(e.target.value)} required />
           )}
 
           <label className="inline-label">
@@ -213,6 +266,16 @@ export default function CreditCardsTab() {
                         {h.delta > 0 ? `Ödeme: ${formatMoney(h.delta)}` : `Borç artışı: ${formatMoney(-h.delta)}`} — {formatDate(h.recorded_at)}
                       </span>
                     ))}
+                    {c.recent_charges.length > 0 && (
+                      <div className="recent-charges">
+                        <span className="hint" style={{ color: textColor }}>Son 3 gün bu karttan yapılan harcamalar:</span>
+                        {c.recent_charges.map((r, i) => (
+                          <span key={i} className="hint" style={{ color: textColor, opacity: 0.85 }}>
+                            {g.name} kartından {formatMoney(r.amount)} ödeme yapıldı — {r.label}{r.note ? ` (${r.note})` : ''} — {formatDate(r.date)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <DebtActions card={c} onDone={reload} />
                 </div>
