@@ -45,6 +45,7 @@ export const api = {
   monthlySummary: (params) => request(`/summary/monthly?${new URLSearchParams(params)}`),
 
   voiceEntry: (formData) => request('/ai/voice-entry', { method: 'POST', body: formData }),
+  receiptExpense: (formData) => request('/ai/receipt-expense', { method: 'POST', body: formData }),
 
   creditCardsList: () => request('/credit-cards'),
   creditCardCreate: (body) => request('/credit-cards', { method: 'POST', body: JSON.stringify(body) }),

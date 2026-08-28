@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from './api';
 import VoiceEntry from './VoiceEntry';
+import ReceiptExpense from './ReceiptExpense';
 import ShopSwitcher from './ShopSwitcher';
 import { useLiveRefresh } from './useLiveRefresh';
 
@@ -12,7 +13,7 @@ function today() {
   return `${y}-${m}-${day}`;
 }
 const isToday = (isoDate) => isoDate.slice(0, 10) === today();
-const EXPENSE_CATEGORIES = ['Yemek', 'Temizlik', 'Kişisel Giderler', 'Ekstra Giderler', 'Diğer'];
+const EXPENSE_CATEGORIES = ['Yemek', 'Temizlik', 'Kişisel Giderler', 'Ekstra Giderler', 'Ürün Alımı', 'Diğer'];
 
 const dateFormatter = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
 const formatDate = (isoDate) => dateFormatter.format(new Date(isoDate));
@@ -122,6 +123,7 @@ export default function DailyTab({ shops }) {
             </select>
             <button type="submit">Ekle</button>
           </form>
+          <ReceiptExpense shopId={shopId} date={today()} onSaved={reload} />
         </section>
       </div>
 

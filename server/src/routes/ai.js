@@ -7,6 +7,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 
 const GROQ_BASE = 'https://api.groq.com/openai/v1';
 const WHISPER_MODEL = process.env.GROQ_WHISPER_MODEL || 'whisper-large-v3';
 const TEXT_MODEL = process.env.GROQ_TEXT_MODEL || 'openai/gpt-oss-120b';
+const VISION_MODEL = process.env.GROQ_VISION_MODEL || 'qwen/qwen3.8-27b';
 
 function apiKey() {
   const key = process.env.GROQ_API_KEY;
@@ -36,7 +37,7 @@ async function transcribeAudio(buffer, mimetype) {
 }
 
 const PARSE_SYSTEM_PROMPT = `Sen bir dükkan gelir-gider asistanısın. Kullanıcı Türkçe konuşarak günlük işlemlerini anlatır (gelir: nakit/pos veya gider). Konuşmadan işlemleri çıkar ve SADECE şu JSON formatında döndür, başka hiçbir metin ekleme:
-{"transactions":[{"type":"income" veya "expense","method":"nakit" veya "pos" (sadece income için, yoksa null),"category":"Yemek"|"Temizlik"|"Kişisel Giderler"|"Ekstra Giderler"|"Diğer" (sadece expense için, yoksa null),"amount":sayı,"note":kısa açıklama veya null}]}
+{"transactions":[{"type":"income" veya "expense","method":"nakit" veya "pos" (sadece income için, yoksa null),"category":"Yemek"|"Temizlik"|"Kişisel Giderler"|"Ekstra Giderler"|"Ürün Alımı"|"Diğer" (sadece expense için, yoksa null),"amount":sayı,"note":kısa açıklama veya null}]}
 Tutarı sadece sayı olarak yaz (₺, TL, lira gibi birimleri çıkar). Emin olmadığın alanları en mantıklı tahminle doldur.`;
 
 async function parseTransactions(transcript) {
@@ -66,6 +67,40 @@ router.post('/voice-entry', upload.single('audio'), async (req, res) => {
   const transcript = await transcribeAudio(req.file.buffer, req.file.mimetype);
   const transactions = await parseTransactions(transcript);
   res.json({ transcript, transactions });
+});
+
+const RECEIPT_SYSTEM_PROMPT = `Bir dekont veya fiş fotoğrafına bakıyorsun (ürün/mal alımı için yapılmış bir ödeme belgesi). Firma/tedarikçi adını ve TOPLAM tutarı bul. SADECE şu JSON formatında döndür, başka hiçbir metin ekleme:
+{"vendor_name": string veya null, "amount": sayı, "note": dekont üzerinde tarih/açıklama gibi kısa bilgi veya null}
+Tutarı sadece sayı olarak yaz (₺, TL gibi birimleri çıkar). Emin değilsen dekontta en belirgin/toplam tutarı seç.`;
+
+router.post('/receipt-expense', upload.single('image'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'image dosyası gerekli' });
+  const dataUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+
+  const r = await fetch(`${GROQ_BASE}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey()}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: VISION_MODEL,
+      response_format: { type: 'json_object' },
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: RECEIPT_SYSTEM_PROMPT },
+            { type: 'image_url', image_url: { url: dataUrl } }
+          ]
+        }
+      ]
+    })
+  });
+  if (!r.ok) throw new Error(`Groq görsel hatası: ${r.status} ${await r.text()}`);
+  const data = await r.json();
+  const draft = JSON.parse(data.choices[0].message.content);
+  res.json({ draft });
 });
 
 export default router;
