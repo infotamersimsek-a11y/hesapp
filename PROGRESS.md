@@ -178,6 +178,17 @@ Kullanıcı Findeks'ten kredi kartı raporu PDF'i yükleyip kartların otomatik 
   - **Not:** Groq'un model kataloğu zaman zaman değişiyor/modeller kaldırılıyor — ileride yine "model_not_found" hatası çıkarsa aynı yöntemle (`GET https://api.groq.com/openai/v1/models` ile Bearer key kullanarak) güncel listeyi çekip `GROQ_TEXT_MODEL`/`GROQ_WHISPER_MODEL`'i güncelle.
 - Kullanıcı ayrıca "konuşurken aynı anda metne çevrilsin" istedi (gerçek zamanlı canlı transkript). Açıklandı: bu, iPhone Safari'de desteklenmeyen bir tarayıcı özelliği (Web Speech API) gerektirir; tam platformlar-arası gerçek zamanlı çözüm için ücretli streaming STT servisi (Deepgram vb.) + belirgin ek geliştirme gerekir. **Kullanıcı karar verdi: mevcut akış (konuş → bırak → 1-2 saniyede metne çevrilir) yeterli, ek servis kurulmayacak.**
 
+## Dekont Fotoğrafı ile Gider Ekleme — Yeniden Eklendi (Farklı Amaçla)
+- 2026-08-28: Kullanıcı isteği: "gelen ürünler ile ilgili dekontu atacağım, gider kısmına kaydedecek" — tedarikçiden gelen mal/ürünler için ödeme dekontu/fişi fotoğraflanıp otomatik gider kaydı oluşturulsun.
+- **Not:** Daha önce (27 Ağustos) POS fiş okuma özelliği kullanıcı isteğiyle tamamen kaldırılmıştı ("her şey sesle girilecek, kamera gerekmiyor"). Bu farklı bir kullanım — POS/gelir değil, **tedarikçi ödeme dekontu → gider** — o yüzden ayrı, yeniden eklendi.
+- Önce Groq'ta hangi vision (görsel okuyabilen) modelin hâlâ mevcut olduğu kontrol edildi (geçmişte kullanılan `llama-3.2-90b-vision-preview` artık yok, tıpkı metin modelinin kaldırılması gibi). Groq'un resmi dokümantasyonu kontrol edildi: şu an sadece **`qwen/qwen3.6-27b`** ve **`qwen/qwen3.8-27b`** görsel destekliyor. `qwen/qwen3.8-27b` gerçek bir görselle test edildi (base64 image_url + JSON mode), çalıştığı doğrulandı.
+- `server/src/routes/ai.js`: yeni `POST /api/ai/receipt-expense` — fotoğrafı Groq vision'a gönderir, firma adı + toplam tutarı JSON olarak döndürür (`GROQ_VISION_MODEL`, default `qwen/qwen3.8-27b`).
+- Gider kategorilerine **"Ürün Alımı"** eklendi (DailyTab, VoiceEntry, ai.js sesli-giriş prompt'u — tutarlılık için üç yerde de).
+- `client/src/ReceiptExpense.jsx`: fotoğraf çek/yükle → onay ekranında tutar+firma düzenlenebilir → onaylanınca `category: "Ürün Alımı"` ile günlük gidere kaydediliyor. DailyTab'da "Gider Ekle" bölümünün altına eklendi.
+- **Dürüstlük testi geçti:** Gerçek dekont olmayan bir test görseli (düz mavi kare) gönderildiğinde model uydurma tutar üretmedi, "dekont/fiş bilgisi bulunmuyor" dedi — halüsinasyon riski düşük görünüyor, ama gerçek dekont fotoğraflarıyla kullanıcı test etmeli.
+- Local'de tam test edildi (mekanik: upload→Groq→JSON→response; kayıt: "Ürün Alımı" kategorisiyle DB'ye doğru yazıldı — bu testte yine bash'e Türkçe karakter yazma hatası tekrar oldu, dosya üzerinden node script ile düzeltilip doğrulandı). Sonra canlıda (`hesapalr.vercel.app`) aynı endpoint test edildi, çalıştı.
+- Commit edilip push edildi, Vercel otomatik deploy etti. `GROQ_VISION_MODEL` Vercel production'a da eklendi (kod zaten fallback default'la çalışıyordu, bu ekstra netlik için).
+
 ## Proje Yapısı
 ```
 hesapalr/
