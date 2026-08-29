@@ -453,28 +453,6 @@ li button {
   color: #555;
 }
 
-.bank-picker {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.bank-option {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  width: 96px;
-  min-height: 56px;
-  padding: 8px 6px;
-  border: 2px solid #ccc;
-  border-radius: 10px;
-  background: #fff;
-  cursor: pointer;
-  font-size: 0.78rem;
-  font-weight: 700;
-  line-height: 1.15;
-}
 
 .card-list {
   margin-top: 20px;

@@ -90,6 +90,7 @@ function DebtActions({ card, onDone }) {
     const paid = Number(amount);
     if (!paid) return;
     await save(Number((Number(card.debt_amount) - paid).toFixed(2)));
+    alert(`${formatMoney(paid)} ödendi`);
   };
 
   return (
@@ -163,50 +164,18 @@ export default function CreditCardsTab() {
       <section>
         <h3>Kart Ekle</h3>
         <form onSubmit={addCard}>
-          <p className="hint">Banka</p>
-          <div className="bank-picker">
-            {TURKISH_BANKS.map((b) => {
-              const bColor = getBankColor(b);
-              const active = bankChoice === b;
-              return (
-                <button
-                  type="button"
-                  key={b}
-                  className={`bank-option${active ? ' active' : ''}`}
-                  style={active ? { background: bColor, color: getContrastText(bColor), borderColor: bColor } : { borderColor: bColor, color: bColor }}
-                  onClick={() => setBankChoice(b)}
-                >
-                  {b}
-                </button>
-              );
-            })}
-          </div>
-
-          <p className="hint">Firma</p>
-          <div className="bank-picker">
-            {SUPPLIER_COMPANIES.map((f) => {
-              const fColor = getSupplierColor(f);
-              const active = bankChoice === f;
-              return (
-                <button
-                  type="button"
-                  key={f}
-                  className={`bank-option${active ? ' active' : ''}`}
-                  style={active ? { background: fColor, color: getContrastText(fColor), borderColor: fColor } : { borderColor: fColor, color: fColor }}
-                  onClick={() => setBankChoice(f)}
-                >
-                  {f}
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              className={`bank-option${bankChoice === 'Diğer' ? ' active' : ''}`}
-              onClick={() => setBankChoice('Diğer')}
-            >
-              Diğer
-            </button>
-          </div>
+          <label className="inline-label">
+            Banka / Firma
+            <select value={bankChoice} onChange={(e) => setBankChoice(e.target.value)}>
+              <optgroup label="Banka">
+                {TURKISH_BANKS.map((b) => <option key={b} value={b}>{b}</option>)}
+              </optgroup>
+              <optgroup label="Firma">
+                {SUPPLIER_COMPANIES.map((f) => <option key={f} value={f}>{f}</option>)}
+              </optgroup>
+              <option value="Diğer">Diğer</option>
+            </select>
+          </label>
           {bankChoice === 'Diğer' && (
             <input type="text" placeholder="Banka / firma adı" value={bankCustom} onChange={(e) => setBankCustom(e.target.value)} required />
           )}
@@ -220,7 +189,17 @@ export default function CreditCardsTab() {
 
           <label className="inline-label">
             Tür
-            <select value={type} onChange={(e) => setType(e.target.value)}>
+            <select
+              value={type}
+              onChange={(e) => {
+                const v = e.target.value;
+                setType(v);
+                if (v !== 'Kredi Kartı' && v !== 'Diğer') {
+                  setLast4('');
+                  setStatementDay('');
+                }
+              }}
+            >
               {CARD_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
           </label>
@@ -228,13 +207,17 @@ export default function CreditCardsTab() {
             <input type="text" placeholder="Tür adı" value={typeCustom} onChange={(e) => setTypeCustom(e.target.value)} required />
           )}
 
-          <input type="text" placeholder="Kartın son 4 hanesi (opsiyonel)" maxLength={4} value={last4} onChange={(e) => setLast4(e.target.value.replace(/\D/g, ''))} />
+          {(type === 'Kredi Kartı' || type === 'Diğer') && (
+            <input type="text" placeholder="Kartın son 4 hanesi (opsiyonel)" maxLength={4} value={last4} onChange={(e) => setLast4(e.target.value.replace(/\D/g, ''))} />
+          )}
           <input type="number" step="0.01" placeholder="Güncel borç" value={debtAmount} onChange={(e) => setDebtAmount(e.target.value)} />
 
-          <label className="inline-label">
-            Hesap kesim günü (opsiyonel, 1-31)
-            <input type="number" min="1" max="31" value={statementDay} onChange={(e) => setStatementDay(e.target.value)} />
-          </label>
+          {(type === 'Kredi Kartı' || type === 'Diğer') && (
+            <label className="inline-label">
+              Hesap kesim günü (opsiyonel, 1-31)
+              <input type="number" min="1" max="31" value={statementDay} onChange={(e) => setStatementDay(e.target.value)} />
+            </label>
+          )}
           <label className="inline-label">
             Son ödeme günü (opsiyonel, 1-31)
             <input type="number" min="1" max="31" value={dueDay} onChange={(e) => setDueDay(e.target.value)} />
