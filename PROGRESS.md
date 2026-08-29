@@ -228,6 +228,13 @@ Kullanıcı Findeks'ten kredi kartı raporu PDF'i yükleyip kartların otomatik 
   3. "Ödeme Yapıldı" butonuna basınca artık `alert()` ile "X ₺ ödendi" popup'ı çıkıyor — önceden sessizce kaydediyordu, kullanıcı işlemin gerçekten kaydedildiğini görsel olarak teyit edemiyordu.
 - Build temiz, commit+push, Vercel otomatik deploy etti, canlı doğrulandı (200 OK).
 
+## Aylık Sekmede Kategori/Firma Bazlı Özet Raporu + Sabit Gider Sadece Hacıoğulları'nda
+- 2026-08-29: Kullanıcı isteği: Sabit Gider Ekle formu sadece Hacıoğulları için anlamlı (Çıtır Tatlı'nın ayrı sabit gideri yok, sadece kendi gelir/gider toplamı gösterilsin). Ayrıca ay sonunda "Lale Gıda'ya şu kadar, aylık yemek gideri şu kadar" gibi kategorilere/firmalara ayrılmış bir özet rapor istendi (sabit giderler de bu raporun içinde).
+- `server/src/routes/summary.js`: `/monthly` endpoint'i artık iki yeni alan döndürüyor: `expenseByCategory` (o ayın günlük giderleri `category` alanına göre gruplanıp toplanmış — Yemek, Temizlik, Ürün Alımı vb.) ve `expenseByVendor` (o ayın sabit giderleri `vendor_name`'e göre gruplanıp toplanmış — Lale Gıda, Elektrik vb., aynı firmaya birden fazla kayıt varsa toplanıyor).
+- `client/src/MonthlyTab.jsx`: "Sabit Gider Ekle" bölümü artık `shops` listesinden seçili dükkanın adı "Hacıoğulları" olduğunda gösteriliyor (`shopName === 'Hacıoğulları'`), Çıtır Tatlı seçiliyken gizli — sadece üstteki gelir/gider özeti görünür kalıyor. Yeni "Özet Raporu Göster/Gizle" butonu ile açılıp kapanan bir bölüm eklendi: kategori bazlı günlük gider toplamları + (sadece Hacıoğulları'nda) firma bazlı sabit gider toplamları, `formatMoney` ile "X bin ₺" formatında.
+- Gerçek kullanıcı verisiyle test edildi: Hacıoğulları Ağustos ayı — Ürün Alımı 27.500₺, Yemek 700₺ doğru ayrıştı.
+- Build temiz, commit+push edildi, Vercel otomatik deploy etti, canlı doğrulandı.
+
 ## Proje Yapısı
 ```
 hesapalr/
