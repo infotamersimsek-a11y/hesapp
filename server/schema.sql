@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS credit_cards (
   owner TEXT NOT NULL DEFAULT 'Tamer',
   type TEXT NOT NULL DEFAULT 'Kredi Kartı',
   last4 TEXT,
+  credit_limit NUMERIC(12,2),
   debt_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
   statement_day INTEGER CHECK (statement_day BETWEEN 1 AND 31),
   due_day INTEGER CHECK (due_day BETWEEN 1 AND 31),

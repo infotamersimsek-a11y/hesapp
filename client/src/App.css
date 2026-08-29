@@ -570,13 +570,15 @@ li button {
 
 .label-debt,
 .label-due,
-.label-statement {
+.label-statement,
+.label-limit {
   font-weight: 700;
 }
 
 .label-debt::before,
 .label-due::before,
-.label-statement::before {
+.label-statement::before,
+.label-limit::before {
   content: '●';
   margin-right: 6px;
 }
@@ -584,6 +586,7 @@ li button {
 .label-debt::before { color: #ff6b6b; }
 .label-due::before { color: #69f0ae; }
 .label-statement::before { color: #ffd54f; }
+.label-limit::before { color: #64b5f6; }
 
 .inline-update button.debt-update-btn {
   background: #8b0000;

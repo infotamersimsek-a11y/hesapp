@@ -43,12 +43,14 @@ function withComputed(card) {
   const nextStatementDate = nextOccurrence(card.statement_day);
   const nextDueDate = nextOccurrence(card.due_day);
   const daysUntilDue = daysUntil(nextDueDate);
+  const creditLimit = card.credit_limit == null ? null : Number(card.credit_limit);
   return {
     ...card,
     next_statement_date: nextStatementDate ? toDateStr(nextStatementDate) : null,
     next_due_date: nextDueDate ? toDateStr(nextDueDate) : null,
     days_until_due: daysUntilDue,
     due_soon: daysUntilDue !== null && daysUntilDue <= 3,
+    available_limit: creditLimit === null ? null : Number((creditLimit - Number(card.debt_amount)).toFixed(2)),
   };
 }
 
@@ -123,11 +125,11 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { name, owner, type, last4, debt_amount, statement_day, due_day, note } = req.body;
+  const { name, owner, type, last4, credit_limit, debt_amount, statement_day, due_day, note } = req.body;
   const { rows } = await pool.query(
-    `INSERT INTO credit_cards (name, owner, type, last4, debt_amount, statement_day, due_day, note)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-    [name, owner, type, last4 || null, debt_amount ?? 0, statement_day || null, due_day || null, note ?? null]
+    `INSERT INTO credit_cards (name, owner, type, last4, credit_limit, debt_amount, statement_day, due_day, note)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+    [name, owner, type, last4 || null, credit_limit || null, debt_amount ?? 0, statement_day || null, due_day || null, note ?? null]
   );
   const card = rows[0];
   await pool.query(
@@ -143,10 +145,10 @@ router.post('/', async (req, res) => {
 });
 
 router.put('/:id', async (req, res) => {
-  const { name, owner, type, last4, debt_amount, statement_day, due_day, note } = req.body;
+  const { name, owner, type, last4, credit_limit, debt_amount, statement_day, due_day, note } = req.body;
   const { rows } = await pool.query(
-    `UPDATE credit_cards SET name=$1, owner=$2, type=$3, last4=$4, debt_amount=$5, statement_day=$6, due_day=$7, note=$8 WHERE id=$9 RETURNING *`,
-    [name, owner, type, last4 || null, debt_amount, statement_day || null, due_day || null, note ?? null, req.params.id]
+    `UPDATE credit_cards SET name=$1, owner=$2, type=$3, last4=$4, credit_limit=$5, debt_amount=$6, statement_day=$7, due_day=$8, note=$9 WHERE id=$10 RETURNING *`,
+    [name, owner, type, last4 || null, credit_limit || null, debt_amount, statement_day || null, due_day || null, note ?? null, req.params.id]
   );
   if (!rows.length) return res.status(404).json({ error: 'not found' });
   const card = rows[0];

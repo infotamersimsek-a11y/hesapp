@@ -72,6 +72,7 @@ function DebtActions({ card, onDone }) {
       owner: card.owner,
       type: card.type,
       last4: card.last4,
+      credit_limit: card.credit_limit,
       debt_amount: newDebt,
       statement_day: card.statement_day,
       due_day: card.due_day,
@@ -111,6 +112,7 @@ export default function CreditCardsTab() {
   const [type, setType] = useState(CARD_TYPES[0]);
   const [typeCustom, setTypeCustom] = useState('');
   const [last4, setLast4] = useState('');
+  const [creditLimit, setCreditLimit] = useState('');
   const [debtAmount, setDebtAmount] = useState('');
   const [statementDay, setStatementDay] = useState('');
   const [dueDay, setDueDay] = useState('');
@@ -133,6 +135,7 @@ export default function CreditCardsTab() {
       owner,
       type: typeName,
       last4: last4 || null,
+      credit_limit: creditLimit || null,
       debt_amount: debtAmount || 0,
       statement_day: statementDay || null,
       due_day: dueDay || null,
@@ -144,6 +147,7 @@ export default function CreditCardsTab() {
     setType(CARD_TYPES[0]);
     setTypeCustom('');
     setLast4('');
+    setCreditLimit('');
     setDebtAmount('');
     setStatementDay('');
     setDueDay('');
@@ -210,6 +214,7 @@ export default function CreditCardsTab() {
           {(type === 'Kredi Kartı' || type === 'Diğer') && (
             <input type="text" placeholder="Kartın son 4 hanesi (opsiyonel)" maxLength={4} value={last4} onChange={(e) => setLast4(e.target.value.replace(/\D/g, ''))} />
           )}
+          <input type="number" step="0.01" placeholder="Toplam limit (opsiyonel)" value={creditLimit} onChange={(e) => setCreditLimit(e.target.value)} />
           <input type="number" step="0.01" placeholder="Güncel borç" value={debtAmount} onChange={(e) => setDebtAmount(e.target.value)} />
 
           {(type === 'Kredi Kartı' || type === 'Diğer') && (
@@ -252,6 +257,7 @@ export default function CreditCardsTab() {
                   </div>
                   <div className="credit-card-body" style={{ color: textColor }}>
                     <span className="label-debt">Borç: {formatMoney(c.debt_amount)}</span>
+                    {c.credit_limit != null && <span className="label-limit">Kullanılabilir Limit: {formatMoney(c.available_limit)} / {formatMoney(c.credit_limit)}</span>}
                     {c.statement_day && <span className="label-statement">Hesap Kesim: {c.statement_day} (sıradaki: {formatDate(c.next_statement_date)})</span>}
                     {c.due_day && <span className="label-due">Son Ödeme: {c.due_day} (sıradaki: {formatDate(c.next_due_date)})</span>}
                     {c.note && <span>Not: {c.note}</span>}
