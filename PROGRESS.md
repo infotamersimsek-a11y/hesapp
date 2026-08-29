@@ -215,6 +215,14 @@ Kullanıcı Findeks'ten kredi kartı raporu PDF'i yükleyip kartların otomatik 
 - `ai.js` içinde tekrar eden Groq vision çağrı kodu `visionExtract()` ortak fonksiyonuna çıkarıldı (receipt-expense ve card-balance ikisi de kullanıyor).
 - Uçtan uca test edildi (kart oluştur → gidere bağla → `recent_charges`'ta doğru göründü → vision endpoint gerçek görselle 200 döndü). Build temiz, commit+push, Vercel otomatik deploy etti. **Canlıda doğrulandı — kullanıcının önceden girdiği 7 gerçek kart hiç etkilenmedi, hepsi duruyor.**
 
+## Tutar Düzenleme (Edit) + Tedarikçi Firma Butonları Görsel Düzeltmesi
+- 2026-08-29: Kullanıcı: "fiyat eklerken hata yapıyorum, düzelt olsun" — 24 saat içi şifresiz, daha eski kayıt için zaten var olan yönetici şifresiyle düzenleme yapabilmek istedi.
+- Backend'de `PUT /api/daily-income/:id` ve `PUT /api/daily-expense/:id` zaten `assertDateAllowed` kullanıyordu (bir önceki özellikte eklenmişti) — sadece **frontend edit arayüzü eksikti**, o eklendi.
+- `client/src/api.js`: `dailyIncomeUpdate`, `dailyExpenseUpdate` (PUT wrapper) eklendi.
+- `client/src/DailyTab.jsx`: yeni `AmountEditor` bileşeni — her gelir/gider satırında "Düzenle" linki, tıklayınca satır içi tutar kutusu + Kaydet/Vazgeç açılıyor. Kaydın tarihi bugün/dün değilse ek olarak yönetici şifresi kutusu da çıkıyor (`isYesterday` helper'ı eklendi). Düzenleme her zaman görünür (silme gibi sadece bugüne özel değil) — geçmiş kayıt şifreyle düzenlenebilir ama hâlâ silinemez (denetim ilkesi korunuyor, sadece "düzelt" izni var, "sil" izni yok).
+- Test edildi: bugünkü kayıt şifresiz düzenlendi (100→250₺), doğrulandı. Commit+push, Vercel otomatik deploy etti.
+- **Aynı oturumda ek istek:** Tedarikçi firma butonları (Lale Gıda, Örgün Gıda, Ambalaj, Coca-Cola, Alpedo) hepsi düz beyazdı, birbirinden ayırt edilemiyordu. Her firmaya sabit bir renk verildi (`SUPPLIER_COLORS`), banka butonlarıyla aynı aktif/pasif renklendirme mantığı uygulandı. Kart grubu başlığı da (firma seçilince) artık kendi renginde gösteriliyor (`getEntityColor` — önce firma rengine, yoksa banka rengine bakıyor). Buton şekli de "yatay sıralı, dikey kutucuk" istendiği gibi düzeltildi: sabit genişlikte (96px), ortalanmış, kare/dikdörtgene yakın kutucuklar — üstteki gibi ince yatay pilller değil, satıra sığmayanlar alt satıra kayıyor. Build temiz, commit+push, Vercel deploy etti.
+
 ## Proje Yapısı
 ```
 hesapalr/
