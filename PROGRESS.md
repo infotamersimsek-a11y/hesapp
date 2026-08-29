@@ -235,6 +235,15 @@ Kullanıcı Findeks'ten kredi kartı raporu PDF'i yükleyip kartların otomatik 
 - Gerçek kullanıcı verisiyle test edildi: Hacıoğulları Ağustos ayı — Ürün Alımı 27.500₺, Yemek 700₺ doğru ayrıştı.
 - Build temiz, commit+push edildi, Vercel otomatik deploy etti, canlı doğrulandı.
 
+## Aylık Sekmesi Baştan Yazıldı — İki Dükkan Alt Alta, Geçiş Yok
+- 2026-08-29: Kullanıcı isteği (garbled/karmaşık geldi, `AskUserQuestion` ile netleştirildi ve onaylandı): Aylık sekmede dükkan geçiş butonu ("Hacıoğulları"/"Çıtır Tatlı" toggle) kalksın, ikisinin bakiyesi **aynı ekranda alt alta** görünsün. Her dükkan bloğunda sadece Nakit Gelir/POS Gelir/Toplam Gelir/**Toplam Gider** (tek satır, Sabit+Günlük ayrı yazılmıyor)/Bakiye olsun.
+- `client/src/MonthlyTab.jsx` baştan yazıldı: `ShopSwitcher` kaldırıldı. `reload()` artık `shops` dizisindeki HER dükkan için `api.monthlySummary()` çağırıyor (`Promise.all`), sonuçlar `summaries` state'inde `shopId → summary` map'i olarak tutuluyor. Render'da `shops.map()` ile her dükkanın özet bloğu (`.shop-summary-block`) alt alta basılıyor.
+- "Sabit Gider Ekle" formu artık her zaman **Hacıoğulları'na sabit** (`shops.find(s => s.name === 'Hacıoğulları')?.id`) — dükkan seçimine bağlı değil, her zaman görünür.
+- **Aynı oturumda ek istek:** "Özet Raporu çıkar dediğimde ayrı ayrı ve toplu seçenek sunsun." "Özet Raporu Göster" açılınca **"Ayrı Ayrı" / "Toplu"** iki buton çıkıyor: Ayrı Ayrı modda her dükkanın kendi kategori/firma kırılımı ayrı kutuda; Toplu modda `mergeByKey()` yardımcı fonksiyonuyla iki dükkanın aynı kategorideki/firmadaki tutarları toplanıp **tek birleşik rapor** gösteriliyor.
+- Backend değişmedi (`summary.js` zaten bir önceki adımda `expenseByCategory`/`expenseByVendor` döndürüyordu) — sadece frontend her shop için ayrı ayrı çağırıyor artık.
+- Gerçek veriyle test edildi: Hacıoğulları (Toplam Gelir 12.100₺, Toplam Gider 28.200₺, Bakiye -16.100₺) ve Çıtır Tatlı (Toplam Gelir 8.450₺, Toplam Gider 700₺, Bakiye +7.750₺) ikisi de doğru geldi.
+- Build temiz, commit+push, Vercel otomatik deploy etti, canlı doğrulandı (200 OK).
+
 ## Proje Yapısı
 ```
 hesapalr/
