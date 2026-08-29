@@ -288,3 +288,8 @@ hesapalr/
 7. `cd client && npm run dev` — arayüz `http://localhost:5173` üzerinde çalışır (API'ye otomatik proxy var).
 
 Neon/Groq olmadan hızlı görsel test için: `cd server && npm run preview` (bellek-içi sahte DB, GROQ_API_KEY yoksa ses/foto özellikleri 400 hatası verir ama gerisi çalışır).
+
+## Aylık Sekme — Sabit Gider Sadece Hacıoğulları Bakiyesinin Yanında Geri Geldi
+- 2026-08-29: Bir önceki restrukturasyonda (iki dükkan alt alta, tek Toplam Gider satırı) Sabit Gider ayrı satır olarak kaldırılmıştı. Kullanıcı: sadece Hacıoğulları'nın özet bloğunda, bakiyenin yanında Sabit Gider tekrar görünsün, Çıtır Tatlı'da olmasın.
+- `client/src/MonthlyTab.jsx`: `s.id === hacId` koşuluyla Toplam Gider ile Bakiye arasına `Sabit Gider: {formatMoney(sum.fixedExpense)}` satırı eklendi. Backend zaten `fixedExpense` alanını dönüyordu, backend değişikliği gerekmedi.
+- Build temiz, commit+push edildi, Vercel otomatik deploy tetiklendi.
