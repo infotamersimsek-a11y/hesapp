@@ -293,3 +293,19 @@ Neon/Groq olmadan hızlı görsel test için: `cd server && npm run preview` (be
 - 2026-08-29: Bir önceki restrukturasyonda (iki dükkan alt alta, tek Toplam Gider satırı) Sabit Gider ayrı satır olarak kaldırılmıştı. Kullanıcı: sadece Hacıoğulları'nın özet bloğunda, bakiyenin yanında Sabit Gider tekrar görünsün, Çıtır Tatlı'da olmasın.
 - `client/src/MonthlyTab.jsx`: `s.id === hacId` koşuluyla Toplam Gider ile Bakiye arasına `Sabit Gider: {formatMoney(sum.fixedExpense)}` satırı eklendi. Backend zaten `fixedExpense` alanını dönüyordu, backend değişikliği gerekmedi.
 - Build temiz, commit+push edildi, Vercel otomatik deploy tetiklendi.
+
+## Kredi Kartı — Toplam Limit + Harcamada Otomatik Borç Güncelleme
+- 2026-08-29: Kullanıcı isteği: karta toplam limit girilebilsin, kullanılabilir limit görünsün; gider eklerken kart seçilince o kartın borcu otomatik artsın (elle "Borcu Güncelle" yapmaya gerek kalmadan).
+- **Önceki davranış:** Gider eklerken karta bağlamak sadece bilgi amaçlıydı (mütabakat/reconciliation kıyaslaması için) — `credit_cards.debt_amount` değişmiyordu, sadece elle güncellenebiliyordu. Şimdi bu bağlama işlemi borcu **gerçekten** değiştiriyor.
+- `server/schema.sql` + canlı Neon DB'ye `credit_cards.credit_limit NUMERIC(12,2)` (nullable) kolonu eklendi (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, tek seferlik script ile çalıştırılıp silindi — kayıtlı 7 gerçek kart etkilenmedi).
+- `server/src/routes/creditCards.js`: `withComputed()` artık `available_limit` (limit − borç, limit boşsa `null`) hesaplayıp dönüyor. POST/PUT artık `credit_limit` alanını okuyup kaydediyor.
+- **Yeni ortak fonksiyon** `server/src/cardDebt.js` → `adjustCardDebt(cardId, delta)`: kartın borcuna delta ekler, sonucu `credit_card_debt_log`'a da yazar (mevcut ödeme geçmişi/mütabakat mantığıyla tutarlı — harcama artık "borç artışı" olarak geçmişte görünüyor).
+- `server/src/routes/dailyExpense.js` ve `monthlyExpense.js` (POST/PUT/DELETE hepsi):
+  - **Ekleme:** `credit_card_id` seçiliyse `adjustCardDebt(cardId, +amount)`.
+  - **Düzenleme:** eski kayıt önce okunuyor (`SELECT` update'ten önce) — eski kart varsa borcundan eski tutar geri çıkarılıyor, yeni kart varsa yeni tutar ekleniyor (kart değişse de, sadece tutar değişse de doğru çalışıyor).
+  - **Silme:** silinen kaydın kartı varsa borcundan tutarı geri çıkarıyor (audit kuralı gereği sadece bugünün kaydı silinebiliyor, o kural değişmedi — silinince borç de doğru geri alınıyor).
+  - Sesli giriş (`voice-entry`) ve dekont fotoğrafı (`receipt-expense`) akışlarında zaten kart seçimi yok, bu ikisi etkilenmedi.
+- `client/src/CreditCardsTab.jsx`: Kart Ekle formuna "Toplam limit (opsiyonel)" alanı eklendi (tüm türlerde görünür, sadece Kredi Kartı'na özel değil — Esnek Hesap/İhtiyaç Kredisi'nin de limiti olabilir). Kart kutusunda borç satırının altına `Kullanılabilir Limit: X / Y` satırı eklendi (limit girilmemişse hiç gösterilmiyor). `DebtActions` (Borcu Güncelle/Ödeme Yapıldı) artık `credit_limit`'i de gönderiyor ki güncellemede silinmesin.
+- `App.css`: `.label-limit` (mavi nokta işaretli) eklendi, mevcut `.label-debt/.label-due/.label-statement` deseniyle tutarlı.
+- **Uçtan uca test edildi** (canlı Neon DB'ye karşı, localhost:4000 sunucusu ile): kart oluştur (limit 10.000, borç 1.000) → gider ekle (500, karta bağlı) → borç 1.500, kullanılabilir limit 8.500 doğru hesaplandı → gideri sil → borç 1.000'e geri döndü. Ayrıca düzenleme senaryoları: aynı kartta tutar değişimi (200→300, borç doğru güncellendi) ve kart değiştirme (A'dan B'ye, A'nın borcu geri alındı, B'ye eklendi) ikisi de doğrulandı. Test verileri temizlendi.
+- Build temiz, commit+push edildi, Vercel otomatik deploy etti. Canlıda (`hesapalr.vercel.app`) `/api/credit-cards` yanıtında `credit_limit`/`available_limit` alanları doğrulandı, kullanıcının önceden girdiği 7 gerçek kart etkilenmedi.
