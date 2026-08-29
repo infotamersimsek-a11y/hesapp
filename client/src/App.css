@@ -210,6 +210,37 @@ section form button {
   color: #777;
 }
 
+.report-box {
+  margin-top: 12px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.report-box h4 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+}
+
+.report-box h4:not(:first-child) {
+  margin-top: 16px;
+}
+
+.report-list {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+}
+
+.report-list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px solid #eee;
+  font-size: 0.9rem;
+}
+
 .history-grid {
   margin-top: 28px;
   align-items: start;

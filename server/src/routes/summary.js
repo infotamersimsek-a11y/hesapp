@@ -60,6 +60,18 @@ router.get('/monthly', async (req, res) => {
     `SELECT COALESCE(SUM(amount),0) AS total FROM daily_expense WHERE EXTRACT(YEAR FROM date)=$1 AND EXTRACT(MONTH FROM date)=$2 ${shopFilter}`,
     params
   );
+  const byCategory = await pool.query(
+    `SELECT category, COALESCE(SUM(amount),0) AS total FROM daily_expense
+     WHERE EXTRACT(YEAR FROM date)=$1 AND EXTRACT(MONTH FROM date)=$2 ${shopFilter}
+     GROUP BY category ORDER BY total DESC`,
+    params
+  );
+  const byVendor = await pool.query(
+    `SELECT vendor_name, COALESCE(SUM(amount),0) AS total FROM monthly_expense
+     WHERE year=$1 AND month=$2 ${shopFilter}
+     GROUP BY vendor_name ORDER BY total DESC`,
+    params
+  );
 
   const cashIncomeTotal = Number(income.rows.find((r) => r.method === 'nakit')?.total ?? 0);
   const posTotal = Number(income.rows.find((r) => r.method === 'pos')?.total ?? 0);
@@ -73,7 +85,9 @@ router.get('/monthly', async (req, res) => {
     fixedExpense: fixedExpenseTotal,
     dailyExpense: dailyExpenseTotal,
     totalExpense: fixedExpenseTotal + dailyExpenseTotal,
-    balance: posTotal + cashIncomeTotal - fixedExpenseTotal - dailyExpenseTotal
+    balance: posTotal + cashIncomeTotal - fixedExpenseTotal - dailyExpenseTotal,
+    expenseByCategory: byCategory.rows.map((r) => ({ category: r.category, total: Number(r.total) })),
+    expenseByVendor: byVendor.rows.map((r) => ({ vendor: r.vendor_name, total: Number(r.total) })),
   });
 });
 

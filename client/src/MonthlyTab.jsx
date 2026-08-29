@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from './api';
 import ShopSwitcher from './ShopSwitcher';
 import { useLiveRefresh } from './useLiveRefresh';
+import { formatMoney } from './format';
 
 const now = new Date();
 const FIXED_EXPENSE_TYPES = ['Kira', 'Elektrik', 'Su', 'Doğalgaz', 'Ev Kirası', 'Ambalaj', 'Lale Gıda', 'Örgün Gıda', 'Coca-Cola', 'Diğer'];
@@ -18,6 +19,10 @@ export default function MonthlyTab({ shops }) {
   const [expenses, setExpenses] = useState([]);
   const [summary, setSummary] = useState(null);
   const [cards, setCards] = useState([]);
+  const [showReport, setShowReport] = useState(false);
+
+  const shopName = shops.find((s) => s.id === Number(shopId))?.name;
+  const showFixedExpense = shopName === 'Hacıoğulları';
 
   const reload = async () => {
     if (!shopId) return;
@@ -80,34 +85,64 @@ export default function MonthlyTab({ shops }) {
       )}
       <p className="hint">Nakit ve POS gelirleri artık Günlük sekmesinden girilir, buradaki toplam otomatik hesaplanır.</p>
 
+      {showFixedExpense && (
+        <section>
+          <h3>Sabit Gider Ekle</h3>
+          <form onSubmit={addFixedExpense}>
+            <select value={vendorType} onChange={(e) => setVendorType(e.target.value)}>
+              {FIXED_EXPENSE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+            {vendorType === 'Diğer' && (
+              <input type="text" placeholder="Firma / gider adı" value={vendorCustomName} onChange={(e) => setVendorCustomName(e.target.value)} required />
+            )}
+            <input type="text" placeholder="Not (opsiyonel)" value={vendorNote} onChange={(e) => setVendorNote(e.target.value)} />
+            <input type="number" step="0.01" placeholder="Tutar" value={vendorAmount} onChange={(e) => setVendorAmount(e.target.value)} required />
+            <select value={vendorCardId} onChange={(e) => setVendorCardId(e.target.value)}>
+              <option value="">Ödeme kartı yok</option>
+              {cards.map((c) => <option key={c.id} value={c.id}>{c.name} ile ödendi</option>)}
+            </select>
+            <button type="submit">Ekle</button>
+          </form>
+          <ul>
+            {expenses.map((x) => {
+              const card = cards.find((c) => c.id === x.credit_card_id);
+              return (
+                <li key={x.id}>
+                  {x.vendor_name}{x.note ? ` — ${x.note}` : ''}: {Number(x.amount).toFixed(2)} ₺ {card ? <span className="tag-pos">{card.name}</span> : ''}
+                  <button onClick={() => api.monthlyExpenseDelete(x.id).then(reload)}>Sil</button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
       <section>
-        <h3>Sabit Gider Ekle</h3>
-        <form onSubmit={addFixedExpense}>
-          <select value={vendorType} onChange={(e) => setVendorType(e.target.value)}>
-            {FIXED_EXPENSE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-          {vendorType === 'Diğer' && (
-            <input type="text" placeholder="Firma / gider adı" value={vendorCustomName} onChange={(e) => setVendorCustomName(e.target.value)} required />
-          )}
-          <input type="text" placeholder="Not (opsiyonel)" value={vendorNote} onChange={(e) => setVendorNote(e.target.value)} />
-          <input type="number" step="0.01" placeholder="Tutar" value={vendorAmount} onChange={(e) => setVendorAmount(e.target.value)} required />
-          <select value={vendorCardId} onChange={(e) => setVendorCardId(e.target.value)}>
-            <option value="">Ödeme kartı yok</option>
-            {cards.map((c) => <option key={c.id} value={c.id}>{c.name} ile ödendi</option>)}
-          </select>
-          <button type="submit">Ekle</button>
-        </form>
-        <ul>
-          {expenses.map((x) => {
-            const card = cards.find((c) => c.id === x.credit_card_id);
-            return (
-              <li key={x.id}>
-                {x.vendor_name}{x.note ? ` — ${x.note}` : ''}: {Number(x.amount).toFixed(2)} ₺ {card ? <span className="tag-pos">{card.name}</span> : ''}
-                <button onClick={() => api.monthlyExpenseDelete(x.id).then(reload)}>Sil</button>
-              </li>
-            );
-          })}
-        </ul>
+        <button type="button" className="file-btn" onClick={() => setShowReport((v) => !v)}>
+          {showReport ? 'Özet Raporunu Gizle' : 'Özet Raporu Göster'}
+        </button>
+        {showReport && summary && (
+          <div className="report-box">
+            <h4>Günlük Gider — Kategori Bazlı</h4>
+            {summary.expenseByCategory.length === 0 && <p className="hint">Bu ay kayıt yok.</p>}
+            <ul className="report-list">
+              {summary.expenseByCategory.map((r) => (
+                <li key={r.category}><span>{r.category}</span><span>{formatMoney(r.total)}</span></li>
+              ))}
+            </ul>
+            {showFixedExpense && (
+              <>
+                <h4>Sabit Gider — Firma Bazlı</h4>
+                {summary.expenseByVendor.length === 0 && <p className="hint">Bu ay kayıt yok.</p>}
+                <ul className="report-list">
+                  {summary.expenseByVendor.map((r) => (
+                    <li key={r.vendor}><span>{r.vendor}</span><span>{formatMoney(r.total)}</span></li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        )}
       </section>
     </div>
   );
