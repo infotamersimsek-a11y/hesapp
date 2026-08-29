@@ -18,10 +18,45 @@ function yesterday() {
   return formatYMD(d);
 }
 const isToday = (isoDate) => isoDate.slice(0, 10) === today();
+const isYesterday = (isoDate) => isoDate.slice(0, 10) === yesterday();
 const EXPENSE_CATEGORIES = ['Yemek', 'Temizlik', 'Kişisel Giderler', 'Ekstra Giderler', 'Ürün Alımı', 'Diğer'];
 
 const dateFormatter = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
 const formatDate = (isoDate) => dateFormatter.format(new Date(isoDate));
+
+function AmountEditor({ item, onSave }) {
+  const [editing, setEditing] = useState(false);
+  const [amount, setAmount] = useState(item.amount);
+  const [pw, setPw] = useState('');
+  const [err, setErr] = useState(null);
+  const needsPassword = !isToday(item.date) && !isYesterday(item.date);
+
+  if (!editing) {
+    return <button className="edit-link" onClick={() => setEditing(true)}>Düzenle</button>;
+  }
+
+  const save = async () => {
+    setErr(null);
+    try {
+      await onSave(amount, needsPassword ? pw : undefined);
+      setEditing(false);
+    } catch (e) {
+      setErr(e.message);
+    }
+  };
+
+  return (
+    <span className="edit-inline">
+      <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
+      {needsPassword && (
+        <input type="password" placeholder="Yönetici şifresi" value={pw} onChange={(e) => setPw(e.target.value)} />
+      )}
+      <button type="button" onClick={save}>Kaydet</button>
+      <button type="button" onClick={() => setEditing(false)}>Vazgeç</button>
+      {err && <span className="bad"> {err}</span>}
+    </span>
+  );
+}
 
 function groupByDate(entries) {
   const days = {};
@@ -187,6 +222,12 @@ export default function DailyTab({ shops }) {
                     <li key={i.id}>
                       <span className={i.method === 'pos' ? 'tag-pos' : 'tag-nakit'}>{i.method === 'pos' ? 'POS' : 'Nakit'}</span>
                       {Number(i.amount).toFixed(2)} ₺ {i.note ? `— ${i.note}` : ''}
+                      <AmountEditor
+                        item={i}
+                        onSave={(amount, admin_password) => api.dailyIncomeUpdate(i.id, {
+                          shop_id: i.shop_id, date: i.date.slice(0, 10), method: i.method, amount, note: i.note, admin_password,
+                        }).then(reload)}
+                      />
                       {editable && <button onClick={() => api.dailyIncomeDelete(i.id).then(reload)}>Sil</button>}
                     </li>
                   ))}
@@ -214,6 +255,12 @@ export default function DailyTab({ shops }) {
                     return (
                       <li key={x.id}>
                         {x.category}: {Number(x.amount).toFixed(2)} ₺ {x.note ? `— ${x.note}` : ''} {card ? <span className="tag-pos">{card.name}</span> : ''}
+                        <AmountEditor
+                          item={x}
+                          onSave={(amount, admin_password) => api.dailyExpenseUpdate(x.id, {
+                            shop_id: x.shop_id, date: x.date.slice(0, 10), category: x.category, amount, note: x.note, credit_card_id: x.credit_card_id, admin_password,
+                          }).then(reload)}
+                        />
                         {editable && <button onClick={() => api.dailyExpenseDelete(x.id).then(reload)}>Sil</button>}
                       </li>
                     );
