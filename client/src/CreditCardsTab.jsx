@@ -9,7 +9,16 @@ const formatDate = (isoDate) => dateFormatter.format(new Date(isoDate));
 
 const OWNERS = ['Tamer', 'Ramazan'];
 const CARD_TYPES = ['Kredi Kartı', 'Esnek Hesap', 'İhtiyaç Kredisi', 'Cari Hesap', 'Diğer'];
-const SUPPLIER_COMPANIES = ['Lale Gıda', 'Örgün Gıda', 'Ambalaj', 'Coca-Cola', 'Alpedo'];
+const SUPPLIER_COLORS = {
+  'Lale Gıda': '#2E7D32',
+  'Örgün Gıda': '#EF6C00',
+  'Ambalaj': '#5D4037',
+  'Coca-Cola': '#E30613',
+  'Alpedo': '#0277BD',
+};
+const SUPPLIER_COMPANIES = Object.keys(SUPPLIER_COLORS);
+const getSupplierColor = (name) => SUPPLIER_COLORS[name] || '#616161';
+const getEntityColor = (name) => SUPPLIER_COLORS[name] || getBankColor(name);
 
 function groupCards(cards) {
   const map = new Map();
@@ -176,12 +185,14 @@ export default function CreditCardsTab() {
           <p className="hint">Firma</p>
           <div className="bank-picker">
             {SUPPLIER_COMPANIES.map((f) => {
+              const fColor = getSupplierColor(f);
               const active = bankChoice === f;
               return (
                 <button
                   type="button"
                   key={f}
                   className={`bank-option${active ? ' active' : ''}`}
+                  style={active ? { background: fColor, color: getContrastText(fColor), borderColor: fColor } : { borderColor: fColor, color: fColor }}
                   onClick={() => setBankChoice(f)}
                 >
                   {f}
@@ -236,7 +247,7 @@ export default function CreditCardsTab() {
       <div className="card-list">
         {groups.length === 0 && <p className="hint">Henüz kart yok.</p>}
         {groups.map((g) => {
-          const bankColor = getBankColor(g.name);
+          const bankColor = getEntityColor(g.name);
           const textColor = getContrastText(bankColor);
           const anyDueSoon = g.items.some((c) => c.due_soon);
           return (
