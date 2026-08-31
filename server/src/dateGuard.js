@@ -11,11 +11,17 @@ export function todayStr() {
   return formatDate(new Date());
 }
 
-export function yesterdayStr() {
+export function daysAgoStr(n) {
   const d = new Date();
-  d.setDate(d.getDate() - 1);
+  d.setDate(d.getDate() - n);
   return formatDate(d);
 }
+
+export function yesterdayStr() {
+  return daysAgoStr(1);
+}
+
+const FREE_EDIT_DAYS = 3;
 
 function checkAdminPassword(password) {
   const expected = Buffer.from(process.env.ADMIN_PASSWORD || '');
@@ -31,10 +37,12 @@ export function assertDateAllowed(date, adminPassword) {
     err.status = 400;
     throw err;
   }
-  if (date === today || date === yesterdayStr()) return;
+  for (let i = 0; i < FREE_EDIT_DAYS; i++) {
+    if (date === daysAgoStr(i)) return;
+  }
 
   if (!checkAdminPassword(adminPassword)) {
-    const err = new Error('Bu tarihe (24 saatten eski) kayıt eklemek için yönetici şifresi gerekli');
+    const err = new Error(`Bu tarihe (son ${FREE_EDIT_DAYS} günden eski) kayıt eklemek için yönetici şifresi gerekli`);
     err.status = 403;
     throw err;
   }

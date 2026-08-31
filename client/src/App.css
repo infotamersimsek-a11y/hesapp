@@ -275,6 +275,28 @@ section form button {
   align-items: start;
 }
 
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 0.85rem;
+}
+
+.pager button {
+  padding: 4px 10px;
+  border: 1px solid #ccc;
+  background: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.pager button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .day-card {
   background: #fafafa;
   border: 1px solid #e0e0e0;

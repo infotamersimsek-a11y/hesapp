@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from './api';
-import { getToken } from './auth';
+import { getToken, getDefaultShop } from './auth';
 import Login from './Login';
 import DailyTab from './DailyTab';
 import MonthlyTab from './MonthlyTab';
@@ -30,7 +30,7 @@ export default function App() {
         <button className={tab === 'monthly' ? 'active' : ''} onClick={() => setTab('monthly')}>Aylık</button>
         <button className={tab === 'cards' ? 'active' : ''} onClick={() => setTab('cards')}>Kredi Kartları</button>
       </nav>
-      {tab === 'daily' && <DailyTab shops={shops} />}
+      {tab === 'daily' && <DailyTab shops={shops} defaultShopName={getDefaultShop()} />}
       {tab === 'monthly' && <MonthlyTab shops={shops} />}
       {tab === 'cards' && <CreditCardsTab />}
     </div>

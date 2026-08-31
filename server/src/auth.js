@@ -1,15 +1,24 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
-export function signToken() {
-  return jwt.sign({ auth: true }, process.env.JWT_SECRET, { expiresIn: '30d' });
+function passwordsMatch(a, b) {
+  const expected = Buffer.from(a || '');
+  const given = Buffer.from(b || '');
+  if (expected.length === 0 || expected.length !== given.length) return false;
+  return crypto.timingSafeEqual(expected, given);
 }
 
-export function checkPassword(password) {
-  const expected = Buffer.from(process.env.APP_PASSWORD || '');
-  const given = Buffer.from(password || '');
-  if (expected.length !== given.length) return false;
-  return crypto.timingSafeEqual(expected, given);
+export function resolveLogin(password) {
+  const passwordShops = [
+    { password: process.env.APP_PASSWORD, defaultShop: 'Hacıoğulları' },
+    { password: process.env.APP_PASSWORD_2, defaultShop: 'Çıtır Tatlı' },
+  ];
+  const match = passwordShops.find((p) => passwordsMatch(p.password, password));
+  return match ? match.defaultShop : null;
+}
+
+export function signToken(defaultShop) {
+  return jwt.sign({ auth: true, defaultShop }, process.env.JWT_SECRET, { expiresIn: '30d' });
 }
 
 export function requireAuth(req, res, next) {

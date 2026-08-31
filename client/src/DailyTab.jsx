@@ -12,13 +12,16 @@ function formatYMD(d) {
   return `${y}-${m}-${day}`;
 }
 function today() { return formatYMD(new Date()); }
-function yesterday() {
+function daysAgo(n) {
   const d = new Date();
-  d.setDate(d.getDate() - 1);
+  d.setDate(d.getDate() - n);
   return formatYMD(d);
 }
+const FREE_EDIT_DAYS = 3;
+const FREE_EDIT_DATES = Array.from({ length: FREE_EDIT_DAYS }, (_, i) => daysAgo(i));
 const isToday = (isoDate) => isoDate.slice(0, 10) === today();
-const isYesterday = (isoDate) => isoDate.slice(0, 10) === yesterday();
+const isFreeEditDate = (isoDate) => FREE_EDIT_DATES.includes(isoDate.slice(0, 10));
+const DAYS_PER_PAGE = 3;
 const EXPENSE_CATEGORIES = ['Yemek', 'Temizlik', 'Kişisel Giderler', 'Ekstra Giderler', 'Ürün Alımı', 'Diğer'];
 
 const dateFormatter = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -29,7 +32,7 @@ function AmountEditor({ item, onSave }) {
   const [amount, setAmount] = useState(item.amount);
   const [pw, setPw] = useState('');
   const [err, setErr] = useState(null);
-  const needsPassword = !isToday(item.date) && !isYesterday(item.date);
+  const needsPassword = !isFreeEditDate(item.date);
 
   if (!editing) {
     return <button className="edit-link" onClick={() => setEditing(true)}>Düzenle</button>;
@@ -58,6 +61,17 @@ function AmountEditor({ item, onSave }) {
   );
 }
 
+function Pager({ page, totalPages, onChange }) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="pager">
+      <button type="button" disabled={page === 0} onClick={() => onChange(page - 1)}>◀ Yeni</button>
+      <span>Sayfa {page + 1} / {totalPages}</span>
+      <button type="button" disabled={page >= totalPages - 1} onClick={() => onChange(page + 1)}>Eski ▶</button>
+    </div>
+  );
+}
+
 function groupByDate(entries) {
   const days = {};
   for (const e of entries) {
@@ -72,8 +86,9 @@ function groupByDate(entries) {
     }));
 }
 
-export default function DailyTab({ shops }) {
-  const [shopId, setShopId] = useState(shops[0]?.id ?? '');
+export default function DailyTab({ shops, defaultShopName }) {
+  const initialShop = shops.find((s) => s.name === defaultShopName) ?? shops[0];
+  const [shopId, setShopId] = useState(initialShop?.id ?? '');
   const [date, setDate] = useState(today());
   const [adminPassword, setAdminPassword] = useState('');
   const [incomeMethod, setIncomeMethod] = useState('nakit');
@@ -87,8 +102,10 @@ export default function DailyTab({ shops }) {
   const [allExpenses, setAllExpenses] = useState([]);
   const [cards, setCards] = useState([]);
   const [error, setError] = useState(null);
+  const [incomePage, setIncomePage] = useState(0);
+  const [expensePage, setExpensePage] = useState(0);
 
-  const isBackdated = date !== today() && date !== yesterday();
+  const isBackdated = !isFreeEditDate(date);
 
   const reload = async () => {
     if (!shopId) return;
@@ -103,6 +120,7 @@ export default function DailyTab({ shops }) {
   };
 
   useEffect(() => { reload(); }, [shopId]);
+  useEffect(() => { setIncomePage(0); setExpensePage(0); }, [shopId]);
   useLiveRefresh(reload);
 
   const addIncome = async (e) => {
@@ -144,6 +162,12 @@ export default function DailyTab({ shops }) {
 
   const incomeDays = groupByDate(allIncomes);
   const expenseDays = groupByDate(allExpenses);
+  const incomeTotalPages = Math.max(1, Math.ceil(incomeDays.length / DAYS_PER_PAGE));
+  const expenseTotalPages = Math.max(1, Math.ceil(expenseDays.length / DAYS_PER_PAGE));
+  const incomePageClamped = Math.min(incomePage, incomeTotalPages - 1);
+  const expensePageClamped = Math.min(expensePage, expenseTotalPages - 1);
+  const incomeDaysPage = incomeDays.slice(incomePageClamped * DAYS_PER_PAGE, (incomePageClamped + 1) * DAYS_PER_PAGE);
+  const expenseDaysPage = expenseDays.slice(expensePageClamped * DAYS_PER_PAGE, (expensePageClamped + 1) * DAYS_PER_PAGE);
 
   return (
     <div>
@@ -158,7 +182,7 @@ export default function DailyTab({ shops }) {
         <div className="admin-gate">
           <input
             type="password"
-            placeholder="Yönetici şifresi (24 saatten eski tarih için gerekli)"
+            placeholder={`Yönetici şifresi (son ${FREE_EDIT_DAYS} günden eski tarih için gerekli)`}
             value={adminPassword}
             onChange={(e) => setAdminPassword(e.target.value)}
           />
@@ -207,8 +231,9 @@ export default function DailyTab({ shops }) {
       <div className="grid history-grid">
         <section>
           <h3>Gelir Geçmişi</h3>
+          <Pager page={incomePageClamped} totalPages={incomeTotalPages} onChange={setIncomePage} />
           {incomeDays.length === 0 && <p className="hint">Henüz kayıt yok.</p>}
-          {incomeDays.map((d) => {
+          {incomeDaysPage.map((d) => {
             const editable = isToday(d.date);
             return (
               <div className={`day-card${editable ? '' : ' backdated'}`} key={d.date}>
@@ -239,8 +264,9 @@ export default function DailyTab({ shops }) {
 
         <section>
           <h3>Gider Geçmişi</h3>
+          <Pager page={expensePageClamped} totalPages={expenseTotalPages} onChange={setExpensePage} />
           {expenseDays.length === 0 && <p className="hint">Henüz kayıt yok.</p>}
-          {expenseDays.map((d) => {
+          {expenseDaysPage.map((d) => {
             const editable = isToday(d.date);
             return (
               <div className={`day-card${editable ? '' : ' backdated'}`} key={d.date}>
