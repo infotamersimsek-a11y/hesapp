@@ -22,6 +22,7 @@ export default function MonthlyTab({ shops }) {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [summaries, setSummaries] = useState({});
+  const [prevSummaries, setPrevSummaries] = useState({});
   const [vendorType, setVendorType] = useState(FIXED_EXPENSE_TYPES[0]);
   const [vendorCustomName, setVendorCustomName] = useState('');
   const [vendorNote, setVendorNote] = useState('');
@@ -34,12 +35,21 @@ export default function MonthlyTab({ shops }) {
 
   const hacId = shops.find((s) => s.name === 'Hacıoğulları')?.id;
 
+  const prevMonth = month === 1 ? 12 : month - 1;
+  const prevYear = month === 1 ? year - 1 : year;
+
   const reload = async () => {
     if (shops.length === 0) return;
-    const results = await Promise.all(shops.map((s) => api.monthlySummary({ shop_id: s.id, year, month })));
+    const [results, prevResults] = await Promise.all([
+      Promise.all(shops.map((s) => api.monthlySummary({ shop_id: s.id, year, month }))),
+      Promise.all(shops.map((s) => api.monthlySummary({ shop_id: s.id, year: prevYear, month: prevMonth }))),
+    ]);
     const map = {};
     shops.forEach((s, i) => { map[s.id] = results[i]; });
     setSummaries(map);
+    const prevMap = {};
+    shops.forEach((s, i) => { prevMap[s.id] = prevResults[i]; });
+    setPrevSummaries(prevMap);
 
     if (hacId) {
       const [exp, cardList] = await Promise.all([
@@ -87,6 +97,8 @@ export default function MonthlyTab({ shops }) {
       {shops.map((s) => {
         const sum = summaries[s.id];
         if (!sum) return null;
+        const carryOver = Math.max(0, prevSummaries[s.id]?.balance ?? 0);
+        const combinedTotal = sum.balance + carryOver;
         return (
           <div className="shop-summary-block" key={s.id}>
             <h3>{s.name}</h3>
@@ -97,6 +109,10 @@ export default function MonthlyTab({ shops }) {
               <span>Toplam Gider: {formatMoney(sum.totalExpense)}</span>
               {s.id === hacId && <span>Sabit Gider: {formatMoney(sum.fixedExpense)}</span>}
               <span className={sum.balance >= 0 ? 'ok' : 'bad'}>Bakiye: {formatMoney(sum.balance)}</span>
+            </div>
+            <div className="summary">
+              <span>Geçen Aydan Devreden: {formatMoney(carryOver)}</span>
+              <span className={combinedTotal >= 0 ? 'ok' : 'bad'}>Toplam Bakiye (Devir Dahil): {formatMoney(combinedTotal)}</span>
             </div>
           </div>
         );
