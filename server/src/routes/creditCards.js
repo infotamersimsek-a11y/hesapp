@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
+import { CARD_PAYMENT_CATEGORY } from '../cardDebt.js';
 
 const router = Router();
 
@@ -71,8 +72,8 @@ async function recentCharges(cardId) {
   const since = new Date();
   since.setDate(since.getDate() - 3);
   const { rows } = await pool.query(
-    `SELECT amount, category AS label, date, note FROM daily_expense WHERE credit_card_id=$1 AND date >= $2 ORDER BY date DESC, id DESC`,
-    [cardId, toDateStr(since)]
+    `SELECT amount, category AS label, date, note FROM daily_expense WHERE credit_card_id=$1 AND date >= $2 AND category <> $3 ORDER BY date DESC, id DESC`,
+    [cardId, toDateStr(since), CARD_PAYMENT_CATEGORY]
   );
   return rows.map((r) => ({ amount: Number(r.amount), label: r.label, date: r.date, note: r.note }));
 }

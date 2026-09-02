@@ -22,7 +22,8 @@ const FREE_EDIT_DATES = Array.from({ length: FREE_EDIT_DAYS }, (_, i) => daysAgo
 const isToday = (isoDate) => isoDate.slice(0, 10) === today();
 const isFreeEditDate = (isoDate) => FREE_EDIT_DATES.includes(isoDate.slice(0, 10));
 const DAYS_PER_PAGE = 3;
-const EXPENSE_CATEGORIES = ['Yemek', 'Temizlik', 'Kişisel Giderler', 'Ekstra Giderler', 'Ürün Alımı', 'Diğer'];
+const EXPENSE_CATEGORIES = ['Yemek', 'Temizlik', 'Kişisel Giderler', 'Ekstra Giderler', 'Ürün Alımı', 'Kredi Kartı Ödemesi', 'Diğer'];
+const CARD_PAYMENT_CATEGORY = 'Kredi Kartı Ödemesi';
 
 const dateFormatter = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
 const formatDate = (isoDate) => dateFormatter.format(new Date(isoDate));
@@ -140,6 +141,10 @@ export default function DailyTab({ shops, defaultShopName }) {
   const addExpense = async (e) => {
     e.preventDefault();
     if (!expenseAmount) return;
+    if (expenseCategory === CARD_PAYMENT_CATEGORY && !expenseCardId) {
+      setError('Kredi kartı ödemesi için kart seçmelisin');
+      return;
+    }
     setError(null);
     try {
       await api.dailyExpenseCreate({
@@ -212,9 +217,13 @@ export default function DailyTab({ shops, defaultShopName }) {
             </select>
             <input type="number" step="0.01" placeholder="Tutar" value={expenseAmount} onChange={(e) => setExpenseAmount(e.target.value)} required />
             <input type="text" placeholder="Not (opsiyonel)" value={expenseNote} onChange={(e) => setExpenseNote(e.target.value)} />
-            <select value={expenseCardId} onChange={(e) => setExpenseCardId(e.target.value)}>
-              <option value="">Ödeme kartı yok (nakit/pos)</option>
-              {cards.map((c) => <option key={c.id} value={c.id}>{c.name} ile ödendi</option>)}
+            <select value={expenseCardId} onChange={(e) => setExpenseCardId(e.target.value)} required={expenseCategory === CARD_PAYMENT_CATEGORY}>
+              <option value="">{expenseCategory === CARD_PAYMENT_CATEGORY ? 'Kart seç' : 'Ödeme kartı yok (nakit/pos)'}</option>
+              {cards.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {expenseCategory === CARD_PAYMENT_CATEGORY ? `${c.name} borcuna öde` : `${c.name} ile ödendi`}
+                </option>
+              ))}
             </select>
             <button type="submit">Ekle</button>
           </form>

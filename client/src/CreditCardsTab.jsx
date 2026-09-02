@@ -87,18 +87,10 @@ function DebtActions({ card, onDone }) {
     await save(amount);
   };
 
-  const recordPayment = async () => {
-    const paid = Number(amount);
-    if (!paid) return;
-    await save(Number((Number(card.debt_amount) - paid).toFixed(2)));
-    alert(`${formatMoney(paid)} ödendi`);
-  };
-
   return (
     <form className="inline-update" onSubmit={setNewTotal}>
       <input type="number" step="0.01" placeholder="Tutar" value={amount} onChange={(e) => setAmount(e.target.value)} />
       <button type="submit" className="debt-update-btn">Borcu Güncelle</button>
-      <button type="button" className="payment-btn" onClick={recordPayment}>Ödeme Yapıldı</button>
       <BalancePhoto onRead={setAmount} />
     </form>
   );

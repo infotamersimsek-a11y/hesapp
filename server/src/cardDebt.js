@@ -1,5 +1,11 @@
 import { pool } from './db.js';
 
+export const CARD_PAYMENT_CATEGORY = 'Kredi Kartı Ödemesi';
+
+export function debtDeltaFor(category, amount) {
+  return category === CARD_PAYMENT_CATEGORY ? -Number(amount) : Number(amount);
+}
+
 export async function adjustCardDebt(cardId, delta) {
   if (!cardId || !delta) return;
   const { rows } = await pool.query(

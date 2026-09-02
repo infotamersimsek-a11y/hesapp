@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { todayStr, assertDateAllowed } from '../dateGuard.js';
-import { adjustCardDebt } from '../cardDebt.js';
+import { adjustCardDebt, debtDeltaFor } from '../cardDebt.js';
 
 const router = Router();
 
@@ -38,26 +38,26 @@ router.post('/', async (req, res) => {
     `INSERT INTO daily_expense (shop_id, date, category, amount, note, credit_card_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
     [shop_id, date, category, amount, note ?? null, credit_card_id || null]
   );
-  if (credit_card_id) await adjustCardDebt(credit_card_id, Number(amount));
+  if (credit_card_id) await adjustCardDebt(credit_card_id, debtDeltaFor(category, amount));
   res.status(201).json(rows[0]);
 });
 
 router.put('/:id', async (req, res) => {
   const { shop_id, date, category, amount, note, credit_card_id, admin_password } = req.body;
   assertDateAllowed(date, admin_password);
-  const prev = await pool.query('SELECT amount, credit_card_id FROM daily_expense WHERE id=$1', [req.params.id]);
+  const prev = await pool.query('SELECT amount, category, credit_card_id FROM daily_expense WHERE id=$1', [req.params.id]);
   const { rows } = await pool.query(
     `UPDATE daily_expense SET shop_id=$1, date=$2, category=$3, amount=$4, note=$5, credit_card_id=$6 WHERE id=$7 RETURNING *`,
     [shop_id, date, category, amount, note ?? null, credit_card_id || null, req.params.id]
   );
   if (!rows.length) return res.status(404).json({ error: 'not found' });
-  if (prev.rows[0]?.credit_card_id) await adjustCardDebt(prev.rows[0].credit_card_id, -Number(prev.rows[0].amount));
-  if (credit_card_id) await adjustCardDebt(credit_card_id, Number(amount));
+  if (prev.rows[0]?.credit_card_id) await adjustCardDebt(prev.rows[0].credit_card_id, -debtDeltaFor(prev.rows[0].category, prev.rows[0].amount));
+  if (credit_card_id) await adjustCardDebt(credit_card_id, debtDeltaFor(category, amount));
   res.json(rows[0]);
 });
 
 router.delete('/:id', async (req, res) => {
-  const prev = await pool.query('SELECT amount, credit_card_id FROM daily_expense WHERE id=$1 AND date=$2', [req.params.id, todayStr()]);
+  const prev = await pool.query('SELECT amount, category, credit_card_id FROM daily_expense WHERE id=$1 AND date=$2', [req.params.id, todayStr()]);
   const { rows } = await pool.query(
     'DELETE FROM daily_expense WHERE id=$1 AND date=$2 RETURNING id',
     [req.params.id, todayStr()]
@@ -65,7 +65,7 @@ router.delete('/:id', async (req, res) => {
   if (!rows.length) {
     return res.status(403).json({ error: 'Geçmiş tarihli kayıt silinemez, sadece yeni ekleme yapılabilir' });
   }
-  if (prev.rows[0]?.credit_card_id) await adjustCardDebt(prev.rows[0].credit_card_id, -Number(prev.rows[0].amount));
+  if (prev.rows[0]?.credit_card_id) await adjustCardDebt(prev.rows[0].credit_card_id, -debtDeltaFor(prev.rows[0].category, prev.rows[0].amount));
   res.status(204).end();
 });
 

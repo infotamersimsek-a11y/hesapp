@@ -614,15 +614,6 @@ li button {
   background: #8b0000;
 }
 
-.payment-btn {
-  padding: 6px 12px;
-  background: #1a9c4b;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.85rem;
-}
 
 .inline-update {
   display: flex;
