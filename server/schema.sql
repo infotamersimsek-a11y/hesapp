@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS daily_expense (
   category TEXT NOT NULL,
   amount NUMERIC(12,2) NOT NULL,
   note TEXT,
-  credit_card_id INTEGER REFERENCES credit_cards(id)
+  credit_card_id INTEGER REFERENCES credit_cards(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS monthly_expense (
@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS monthly_expense (
   category TEXT,
   amount NUMERIC(12,2) NOT NULL,
   note TEXT,
-  credit_card_id INTEGER REFERENCES credit_cards(id)
+  credit_card_id INTEGER REFERENCES credit_cards(id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_daily_income_date ON daily_income(shop_id, date);

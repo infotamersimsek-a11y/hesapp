@@ -147,6 +147,16 @@ export default function CreditCardsTab() {
     reload();
   };
 
+  const deleteCard = async (card) => {
+    if (!window.confirm(`${card.name} — ${card.type} silinsin mi? Bu işlem geri alınamaz.`)) return;
+    try {
+      await api.creditCardDelete(card.id);
+      reload();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   const totalDebt = cards.reduce((s, c) => s + Number(c.debt_amount), 0);
   const groups = groupCards(cards);
 
@@ -245,7 +255,7 @@ export default function CreditCardsTab() {
                   <div className="credit-card-header">
                     <strong style={{ color: textColor }}>{c.type}{c.last4 ? ` •••• ${c.last4}` : ''}</strong>
                     {c.due_soon && <span className="backdated-flag">Son ödemeye {c.days_until_due} gün</span>}
-                    <button className="delete-link" onClick={() => api.creditCardDelete(c.id).then(reload)}>Sil</button>
+                    <button className="delete-link" onClick={() => deleteCard(c)}>Sil</button>
                   </div>
                   <div className="credit-card-body" style={{ color: textColor }}>
                     <span className="label-debt">Borç: {formatMoney(c.debt_amount)}</span>

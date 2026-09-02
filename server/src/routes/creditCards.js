@@ -166,7 +166,8 @@ router.put('/:id', async (req, res) => {
 });
 
 router.delete('/:id', async (req, res) => {
-  await pool.query('DELETE FROM credit_cards WHERE id=$1', [req.params.id]);
+  const { rowCount } = await pool.query('DELETE FROM credit_cards WHERE id=$1', [req.params.id]);
+  if (!rowCount) return res.status(404).json({ error: 'Kart bulunamadı' });
   res.status(204).end();
 });
 
