@@ -271,7 +271,7 @@ section form button {
 }
 
 .bar {
-  flex: 0 0 18px;
+  flex: 0 0 29px;
   background: #1a73e8;
   border-radius: 3px 3px 0 0;
   transition: opacity 0.15s;
@@ -292,7 +292,7 @@ section form button {
 }
 
 .bar-label {
-  flex: 0 0 18px;
+  flex: 0 0 29px;
   text-align: center;
   font-size: 0.65rem;
   color: #777;

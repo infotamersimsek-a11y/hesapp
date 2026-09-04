@@ -100,7 +100,6 @@ export default function MonthlyTab({ shops }) {
   const [cards, setCards] = useState([]);
   const [showReport, setShowReport] = useState(false);
   const [reportMode, setReportMode] = useState('separate');
-  const [showStats, setShowStats] = useState(false);
 
   const hacId = shops.find((s) => s.name === 'Hacıoğulları')?.id;
 
@@ -283,17 +282,14 @@ export default function MonthlyTab({ shops }) {
       </section>
 
       <section>
-        <button type="button" className="file-btn" onClick={() => setShowStats((v) => !v)}>
-          {showStats ? 'İstatistiği Gizle' : 'İstatistik Göster'}
-        </button>
-
-        {showStats && shops.map((s) => {
+        <h3>İstatistik</h3>
+        {shops.map((s) => {
           const sum = summaries[s.id];
           if (!sum) return null;
           return <DailyRevenueChart key={s.id} title={`${s.name} — Günlük Ciro`} dailyIncome={sum.dailyIncome} year={year} month={month} />;
         })}
 
-        {showStats && (() => {
+        {(() => {
           const validSums = shops.map((s) => summaries[s.id]).filter(Boolean);
           if (validSums.length === 0) return null;
           const combinedDaily = mergeDailyIncome(validSums.map((s) => s.dailyIncome));
