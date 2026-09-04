@@ -71,7 +71,9 @@ function DailyRevenueChart({ title, dailyIncome, year, month }) {
                   className={`bar${d.isSunday ? ' bar-sunday' : ''}`}
                   style={{ height: `${Math.max(2, (d.total / maxTotal) * 100)}%` }}
                   title={`${dateFormatter.format(new Date(d.dateStr))}: ${formatMoney(d.total)}`}
-                />
+                >
+                  <span className="bar-value">{formatMoney(d.total).replace(' ₺', '')}</span>
+                </div>
               ))}
             </div>
             <div className="bar-labels">

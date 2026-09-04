@@ -259,6 +259,7 @@ section form button {
 .bar-chart-wrap {
   overflow-x: auto;
   margin-bottom: 8px;
+  padding-top: 26px;
 }
 
 .bar-chart {
@@ -271,10 +272,22 @@ section form button {
 }
 
 .bar {
+  position: relative;
   flex: 0 0 29px;
   background: #1a73e8;
   border-radius: 3px 3px 0 0;
   transition: opacity 0.15s;
+}
+
+.bar-value {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 3px;
+  font-size: 0.55rem;
+  color: #333;
+  white-space: nowrap;
 }
 
 .bar:hover {
