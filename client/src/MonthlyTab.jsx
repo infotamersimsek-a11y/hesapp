@@ -40,9 +40,10 @@ function formatYMD(d) {
 const DAY_ABBR = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
 
 function DailyRevenueChart({ title, dailyIncome, year, month }) {
-  const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
+  const today = new Date();
+  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth() + 1;
   const daysInMonth = new Date(year, month, 0).getDate();
-  const lastDay = isCurrentMonth ? Math.min(now.getDate(), daysInMonth) : daysInMonth;
+  const lastDay = isCurrentMonth ? Math.min(today.getDate(), daysInMonth) : daysInMonth;
   const byDate = new Map(dailyIncome.map((d) => [d.date.slice(0, 10), d.total]));
 
   const days = Array.from({ length: lastDay }, (_, i) => {
@@ -53,7 +54,8 @@ function DailyRevenueChart({ title, dailyIncome, year, month }) {
   });
 
   const maxTotal = Math.max(1, ...days.map((d) => d.total));
-  const businessDays = days.filter((d) => !d.isSunday);
+  const todayStr = formatYMD(today);
+  const businessDays = days.filter((d) => !d.isSunday && !(isCurrentMonth && d.dateStr === todayStr));
   const avg = businessDays.length ? businessDays.reduce((s, d) => s + d.total, 0) / businessDays.length : 0;
 
   return (
@@ -80,7 +82,7 @@ function DailyRevenueChart({ title, dailyIncome, year, month }) {
               {days.map((d) => <span key={d.dateStr} className="bar-label">{DAY_ABBR[d.dow]}</span>)}
             </div>
           </div>
-          <p className="hint">Mavi: hesaba dahil · Gri: Pazar (ortalamaya dahil değil)</p>
+          <p className="hint">Mavi: hesaba dahil · Gri: Pazar (ortalamaya dahil değil) · Bugünün verisi henüz tamamlanmadığı için ortalamaya dahil edilmiyor</p>
           <p>Günlük Ortalama Ciro: <strong>{formatMoney(avg)}</strong></p>
         </>
       )}
