@@ -39,12 +39,13 @@ function formatYMD(d) {
 
 const DAY_ABBR = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
 
-function DailyRevenueChart({ title, dailyIncome, year, month }) {
+function buildMonthDays(dailyIncome, year, month) {
   const today = new Date();
   const isCurrentMonth = year === today.getFullYear() && month === today.getMonth() + 1;
   const daysInMonth = new Date(year, month, 0).getDate();
   const lastDay = isCurrentMonth ? Math.min(today.getDate(), daysInMonth) : daysInMonth;
   const byDate = new Map(dailyIncome.map((d) => [d.date.slice(0, 10), d.total]));
+  const todayStr = formatYMD(today);
 
   const days = Array.from({ length: lastDay }, (_, i) => {
     const d = new Date(year, month - 1, i + 1);
@@ -53,10 +54,19 @@ function DailyRevenueChart({ title, dailyIncome, year, month }) {
     return { dateStr, total: byDate.get(dateStr) ?? 0, isSunday: dow === 0, dow };
   });
 
-  const maxTotal = Math.max(1, ...days.map((d) => d.total));
-  const todayStr = formatYMD(today);
+  return { days, isCurrentMonth, todayStr };
+}
+
+function dailyAverage(dailyIncome, year, month) {
+  const { days, isCurrentMonth, todayStr } = buildMonthDays(dailyIncome, year, month);
   const businessDays = days.filter((d) => !d.isSunday && !(isCurrentMonth && d.dateStr === todayStr));
-  const avg = businessDays.length ? businessDays.reduce((s, d) => s + d.total, 0) / businessDays.length : 0;
+  return businessDays.length ? businessDays.reduce((s, d) => s + d.total, 0) / businessDays.length : 0;
+}
+
+function DailyRevenueChart({ title, dailyIncome, year, month }) {
+  const { days } = buildMonthDays(dailyIncome, year, month);
+  const maxTotal = Math.max(1, ...days.map((d) => d.total));
+  const avg = dailyAverage(dailyIncome, year, month);
 
   return (
     <div className="report-box">
@@ -86,6 +96,31 @@ function DailyRevenueChart({ title, dailyIncome, year, month }) {
           <p>Günlük Ortalama Ciro: <strong>{formatMoney(avg)}</strong></p>
         </>
       )}
+    </div>
+  );
+}
+
+function ShopComparisonChart({ shops, summaries, year, month }) {
+  const rows = shops
+    .map((s) => ({ name: s.name, avg: summaries[s.id] ? dailyAverage(summaries[s.id].dailyIncome, year, month) : null }))
+    .filter((r) => r.avg !== null);
+  if (rows.length === 0) return null;
+  const maxAvg = Math.max(1, ...rows.map((r) => r.avg));
+
+  return (
+    <div className="report-box">
+      <h4>Dükkan Karşılaştırma — Günlük Ortalama Ciro</h4>
+      <div className="compare-chart">
+        {rows.map((r) => (
+          <div className="compare-row" key={r.name}>
+            <span className="compare-label">{r.name}</span>
+            <div className="compare-bar-track">
+              <div className="compare-bar-fill" style={{ width: `${(r.avg / maxAvg) * 100}%` }} />
+            </div>
+            <span className="compare-value">{formatMoney(r.avg)}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -292,6 +327,8 @@ export default function MonthlyTab({ shops }) {
           if (!sum) return null;
           return <DailyRevenueChart key={s.id} title={`${s.name} — Günlük Ciro`} dailyIncome={sum.dailyIncome} year={year} month={month} />;
         })}
+
+        <ShopComparisonChart shops={shops} summaries={summaries} year={year} month={month} />
 
         {(() => {
           const validSums = shops.map((s) => summaries[s.id]).filter(Boolean);
