@@ -256,19 +256,22 @@ section form button {
   margin-top: 16px;
 }
 
-.bar-chart {
-  display: flex;
-  align-items: flex-end;
-  gap: 2px;
-  height: 140px;
-  border-bottom: 1px solid #e0e0e0;
-  padding-bottom: 2px;
+.bar-chart-wrap {
+  overflow-x: auto;
   margin-bottom: 8px;
 }
 
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 140px;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 2px;
+}
+
 .bar {
-  flex: 1 1 0;
-  min-width: 2px;
+  flex: 0 0 18px;
   background: #1a73e8;
   border-radius: 3px 3px 0 0;
   transition: opacity 0.15s;
@@ -280,6 +283,19 @@ section form button {
 
 .bar-sunday {
   background: #cfd8dc;
+}
+
+.bar-labels {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.bar-label {
+  flex: 0 0 18px;
+  text-align: center;
+  font-size: 0.65rem;
+  color: #777;
 }
 
 .report-list {

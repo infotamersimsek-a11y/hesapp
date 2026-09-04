@@ -37,6 +37,8 @@ function formatYMD(d) {
   return `${y}-${m}-${day}`;
 }
 
+const DAY_ABBR = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
+
 function DailyRevenueChart({ title, dailyIncome, year, month }) {
   const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
   const daysInMonth = new Date(year, month, 0).getDate();
@@ -46,7 +48,8 @@ function DailyRevenueChart({ title, dailyIncome, year, month }) {
   const days = Array.from({ length: lastDay }, (_, i) => {
     const d = new Date(year, month - 1, i + 1);
     const dateStr = formatYMD(d);
-    return { dateStr, total: byDate.get(dateStr) ?? 0, isSunday: d.getDay() === 0 };
+    const dow = d.getDay();
+    return { dateStr, total: byDate.get(dateStr) ?? 0, isSunday: dow === 0, dow };
   });
 
   const maxTotal = Math.max(1, ...days.map((d) => d.total));
@@ -60,15 +63,20 @@ function DailyRevenueChart({ title, dailyIncome, year, month }) {
         <p className="hint">Bu ay için veri yok.</p>
       ) : (
         <>
-          <div className="bar-chart">
-            {days.map((d) => (
-              <div
-                key={d.dateStr}
-                className={`bar${d.isSunday ? ' bar-sunday' : ''}`}
-                style={{ height: `${Math.max(2, (d.total / maxTotal) * 100)}%` }}
-                title={`${dateFormatter.format(new Date(d.dateStr))}: ${formatMoney(d.total)}`}
-              />
-            ))}
+          <div className="bar-chart-wrap">
+            <div className="bar-chart">
+              {days.map((d) => (
+                <div
+                  key={d.dateStr}
+                  className={`bar${d.isSunday ? ' bar-sunday' : ''}`}
+                  style={{ height: `${Math.max(2, (d.total / maxTotal) * 100)}%` }}
+                  title={`${dateFormatter.format(new Date(d.dateStr))}: ${formatMoney(d.total)}`}
+                />
+              ))}
+            </div>
+            <div className="bar-labels">
+              {days.map((d) => <span key={d.dateStr} className="bar-label">{DAY_ABBR[d.dow]}</span>)}
+            </div>
           </div>
           <p className="hint">Mavi: hesaba dahil · Gri: Pazar (ortalamaya dahil değil)</p>
           <p>Günlük Ortalama Ciro: <strong>{formatMoney(avg)}</strong></p>
