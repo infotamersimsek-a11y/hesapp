@@ -54,12 +54,13 @@ function buildMonthDays(dailyIncome, year, month) {
     return { dateStr, total: byDate.get(dateStr) ?? 0, isSunday: dow === 0, dow };
   });
 
-  return { days, isCurrentMonth, todayStr };
+  return { days, isCurrentMonth, todayStr, byDate };
 }
 
 function dailyAverage(dailyIncome, year, month) {
-  const { days, isCurrentMonth, todayStr } = buildMonthDays(dailyIncome, year, month);
-  const businessDays = days.filter((d) => !d.isSunday && !(isCurrentMonth && d.dateStr === todayStr));
+  const { days, isCurrentMonth, todayStr, byDate } = buildMonthDays(dailyIncome, year, month);
+  const hasTodayData = byDate.has(todayStr);
+  const businessDays = days.filter((d) => !d.isSunday && !(isCurrentMonth && d.dateStr === todayStr && !hasTodayData));
   return businessDays.length ? businessDays.reduce((s, d) => s + d.total, 0) / businessDays.length : 0;
 }
 
@@ -92,7 +93,7 @@ function DailyRevenueChart({ title, dailyIncome, year, month }) {
               {days.map((d) => <span key={d.dateStr} className="bar-label">{DAY_ABBR[d.dow]}</span>)}
             </div>
           </div>
-          <p className="hint">Mavi: hesaba dahil · Gri: Pazar (ortalamaya dahil değil) · Bugünün verisi henüz tamamlanmadığı için ortalamaya dahil edilmiyor</p>
+          <p className="hint">Mavi: hesaba dahil · Gri: Pazar (ortalamaya dahil değil) · Bugün için henüz veri girilmediyse ortalamaya dahil edilmiyor</p>
           <p>Günlük Ortalama Ciro: <strong>{formatMoney(avg)}</strong></p>
         </>
       )}
