@@ -370,10 +370,17 @@ section form button {
 
 .pager {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   margin-bottom: 12px;
   font-size: 0.85rem;
+}
+
+.pager-range {
+  flex: 1 0 100%;
+  font-weight: 600;
+  color: #333;
 }
 
 .pager button {

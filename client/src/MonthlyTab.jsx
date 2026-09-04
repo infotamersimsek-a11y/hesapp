@@ -57,6 +57,19 @@ function buildMonthDays(dailyIncome, year, month) {
   return { days, isCurrentMonth, todayStr, byDate };
 }
 
+const monthYearFormatter = new Intl.DateTimeFormat('tr-TR', { month: 'long', year: 'numeric' });
+
+function formatDayRange(days) {
+  if (days.length === 0) return null;
+  const firstDateStr = days[0].dateStr;
+  const lastDateStr = days[days.length - 1].dateStr;
+  const firstDayNum = Number(firstDateStr.slice(8, 10));
+  const lastDayNum = Number(lastDateStr.slice(8, 10));
+  const label = monthYearFormatter.format(new Date(lastDateStr));
+  if (firstDayNum === lastDayNum) return `${firstDayNum} ${label}`;
+  return `${firstDayNum}-${lastDayNum} ${label} arası`;
+}
+
 function dailyAverage(dailyIncome, year, month) {
   const { days, isCurrentMonth, todayStr, byDate } = buildMonthDays(dailyIncome, year, month);
   const hasTodayData = byDate.has(todayStr);
@@ -68,10 +81,12 @@ function DailyRevenueChart({ title, dailyIncome, year, month }) {
   const { days } = buildMonthDays(dailyIncome, year, month);
   const maxTotal = Math.max(1, ...days.map((d) => d.total));
   const avg = dailyAverage(dailyIncome, year, month);
+  const rangeLabel = formatDayRange(days);
 
   return (
     <div className="report-box">
       <h4>{title}</h4>
+      {rangeLabel && <p className="hint">{rangeLabel}</p>}
       {days.length === 0 ? (
         <p className="hint">Bu ay için veri yok.</p>
       ) : (

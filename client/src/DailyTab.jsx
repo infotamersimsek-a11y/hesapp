@@ -62,13 +62,27 @@ function AmountEditor({ item, onSave }) {
   );
 }
 
-function Pager({ page, totalPages, onChange }) {
-  if (totalPages <= 1) return null;
+function formatDateRangeLabel(dayGroups) {
+  if (dayGroups.length === 0) return null;
+  const dates = dayGroups.map((g) => formatYMD(new Date(g.date))).sort();
+  const first = dates[0];
+  const last = dates[dates.length - 1];
+  if (first === last) return formatDate(first);
+  return `${formatDate(first)} - ${formatDate(last)} arası`;
+}
+
+function Pager({ page, totalPages, onChange, rangeLabel }) {
+  if (!rangeLabel && totalPages <= 1) return null;
   return (
     <div className="pager">
-      <button type="button" disabled={page === 0} onClick={() => onChange(page - 1)}>◀ Yeni</button>
-      <span>Sayfa {page + 1} / {totalPages}</span>
-      <button type="button" disabled={page >= totalPages - 1} onClick={() => onChange(page + 1)}>Eski ▶</button>
+      {rangeLabel && <span className="pager-range">{rangeLabel}</span>}
+      {totalPages > 1 && (
+        <>
+          <button type="button" disabled={page === 0} onClick={() => onChange(page - 1)}>◀ Yeni</button>
+          <span>Sayfa {page + 1} / {totalPages}</span>
+          <button type="button" disabled={page >= totalPages - 1} onClick={() => onChange(page + 1)}>Eski ▶</button>
+        </>
+      )}
     </div>
   );
 }
@@ -240,7 +254,7 @@ export default function DailyTab({ shops, defaultShopName }) {
       <div className="grid history-grid">
         <section>
           <h3>Gelir Geçmişi</h3>
-          <Pager page={incomePageClamped} totalPages={incomeTotalPages} onChange={setIncomePage} />
+          <Pager page={incomePageClamped} totalPages={incomeTotalPages} onChange={setIncomePage} rangeLabel={formatDateRangeLabel(incomeDaysPage)} />
           {incomeDays.length === 0 && <p className="hint">Henüz kayıt yok.</p>}
           {incomeDaysPage.map((d) => {
             const editable = isToday(d.date);
@@ -273,7 +287,7 @@ export default function DailyTab({ shops, defaultShopName }) {
 
         <section>
           <h3>Gider Geçmişi</h3>
-          <Pager page={expensePageClamped} totalPages={expenseTotalPages} onChange={setExpensePage} />
+          <Pager page={expensePageClamped} totalPages={expenseTotalPages} onChange={setExpensePage} rangeLabel={formatDateRangeLabel(expenseDaysPage)} />
           {expenseDays.length === 0 && <p className="hint">Henüz kayıt yok.</p>}
           {expenseDaysPage.map((d) => {
             const editable = isToday(d.date);
