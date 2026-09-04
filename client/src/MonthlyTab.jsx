@@ -5,6 +5,7 @@ import { formatMoney } from './format';
 
 const now = new Date();
 const FIXED_EXPENSE_TYPES = ['Kira', 'Elektrik', 'Su', 'Doğalgaz', 'Ev Kirası', 'Ambalaj', 'Lale Gıda', 'Örgün Gıda', 'Coca-Cola', 'Diğer'];
+const dateFormatter = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
 
 function mergeByKey(lists, key) {
   const map = new Map();
@@ -16,6 +17,65 @@ function mergeByKey(lists, key) {
   return Array.from(map.entries())
     .map(([k, total]) => ({ [key]: k, total }))
     .sort((a, b) => b.total - a.total);
+}
+
+function mergeDailyIncome(lists) {
+  const map = new Map();
+  for (const list of lists) {
+    for (const item of list) {
+      const key = item.date.slice(0, 10);
+      map.set(key, (map.get(key) || 0) + item.total);
+    }
+  }
+  return Array.from(map.entries()).map(([date, total]) => ({ date, total }));
+}
+
+function formatYMD(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function DailyRevenueChart({ title, dailyIncome, year, month }) {
+  const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const lastDay = isCurrentMonth ? Math.min(now.getDate(), daysInMonth) : daysInMonth;
+  const byDate = new Map(dailyIncome.map((d) => [d.date.slice(0, 10), d.total]));
+
+  const days = Array.from({ length: lastDay }, (_, i) => {
+    const d = new Date(year, month - 1, i + 1);
+    const dateStr = formatYMD(d);
+    return { dateStr, total: byDate.get(dateStr) ?? 0, isSunday: d.getDay() === 0 };
+  });
+
+  const maxTotal = Math.max(1, ...days.map((d) => d.total));
+  const businessDays = days.filter((d) => !d.isSunday);
+  const avg = businessDays.length ? businessDays.reduce((s, d) => s + d.total, 0) / businessDays.length : 0;
+
+  return (
+    <div className="report-box">
+      <h4>{title}</h4>
+      {days.length === 0 ? (
+        <p className="hint">Bu ay için veri yok.</p>
+      ) : (
+        <>
+          <div className="bar-chart">
+            {days.map((d) => (
+              <div
+                key={d.dateStr}
+                className={`bar${d.isSunday ? ' bar-sunday' : ''}`}
+                style={{ height: `${Math.max(2, (d.total / maxTotal) * 100)}%` }}
+                title={`${dateFormatter.format(new Date(d.dateStr))}: ${formatMoney(d.total)}`}
+              />
+            ))}
+          </div>
+          <p className="hint">Mavi: hesaba dahil · Gri: Pazar (ortalamaya dahil değil)</p>
+          <p>Günlük Ortalama Ciro: <strong>{formatMoney(avg)}</strong></p>
+        </>
+      )}
+    </div>
+  );
 }
 
 export default function MonthlyTab({ shops }) {
@@ -32,6 +92,7 @@ export default function MonthlyTab({ shops }) {
   const [cards, setCards] = useState([]);
   const [showReport, setShowReport] = useState(false);
   const [reportMode, setReportMode] = useState('separate');
+  const [showStats, setShowStats] = useState(false);
 
   const hacId = shops.find((s) => s.name === 'Hacıoğulları')?.id;
 
@@ -210,6 +271,25 @@ export default function MonthlyTab({ shops }) {
               </ul>
             </div>
           );
+        })()}
+      </section>
+
+      <section>
+        <button type="button" className="file-btn" onClick={() => setShowStats((v) => !v)}>
+          {showStats ? 'İstatistiği Gizle' : 'İstatistik Göster'}
+        </button>
+
+        {showStats && shops.map((s) => {
+          const sum = summaries[s.id];
+          if (!sum) return null;
+          return <DailyRevenueChart key={s.id} title={`${s.name} — Günlük Ciro`} dailyIncome={sum.dailyIncome} year={year} month={month} />;
+        })}
+
+        {showStats && (() => {
+          const validSums = shops.map((s) => summaries[s.id]).filter(Boolean);
+          if (validSums.length === 0) return null;
+          const combinedDaily = mergeDailyIncome(validSums.map((s) => s.dailyIncome));
+          return <DailyRevenueChart title="Genel (Tüm Dükkanlar) — Günlük Ciro" dailyIncome={combinedDaily} year={year} month={month} />;
         })()}
       </section>
     </div>

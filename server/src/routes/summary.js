@@ -72,6 +72,12 @@ router.get('/monthly', async (req, res) => {
      GROUP BY vendor_name ORDER BY total DESC`,
     params
   );
+  const byDate = await pool.query(
+    `SELECT to_char(date, 'YYYY-MM-DD') AS date, COALESCE(SUM(amount),0) AS total FROM daily_income
+     WHERE EXTRACT(YEAR FROM date)=$1 AND EXTRACT(MONTH FROM date)=$2 ${shopFilter}
+     GROUP BY date ORDER BY date`,
+    params
+  );
 
   const cashIncomeTotal = Number(income.rows.find((r) => r.method === 'nakit')?.total ?? 0);
   const posTotal = Number(income.rows.find((r) => r.method === 'pos')?.total ?? 0);
@@ -88,6 +94,7 @@ router.get('/monthly', async (req, res) => {
     balance: posTotal + cashIncomeTotal - fixedExpenseTotal - dailyExpenseTotal,
     expenseByCategory: byCategory.rows.map((r) => ({ category: r.category, total: Number(r.total) })),
     expenseByVendor: byVendor.rows.map((r) => ({ vendor: r.vendor_name, total: Number(r.total) })),
+    dailyIncome: byDate.rows.map((r) => ({ date: r.date, total: Number(r.total) })),
   });
 });
 
