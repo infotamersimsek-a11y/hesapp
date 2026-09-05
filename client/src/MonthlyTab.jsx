@@ -240,6 +240,30 @@ export default function MonthlyTab({ shops }) {
           </div>
         );
       })}
+
+      {(() => {
+        const validSums = shops.map((s) => summaries[s.id]).filter(Boolean);
+        if (validSums.length === 0) return null;
+        const totalIncome = validSums.reduce((s, v) => s + v.totalIncome, 0);
+        const totalExpense = validSums.reduce((s, v) => s + v.totalExpense, 0);
+        const totalBalance = totalIncome - totalExpense;
+        const totalCarryOver = shops.reduce((s, sh) => s + Math.max(0, prevSummaries[sh.id]?.balance ?? 0), 0);
+        const totalCombined = totalBalance + totalCarryOver;
+        return (
+          <div className="shop-summary-block">
+            <h3>Toplam (İki Dükkan)</h3>
+            <div className="summary">
+              <span>Toplam Gelir: {formatMoney(totalIncome)}</span>
+              <span>Toplam Gider: {formatMoney(totalExpense)}</span>
+              <span className={totalBalance >= 0 ? 'ok' : 'bad'}>Bakiye: {formatMoney(totalBalance)}</span>
+            </div>
+            <div className="summary">
+              <span>Geçen Aydan Devreden: {formatMoney(totalCarryOver)}</span>
+              <span className={totalCombined >= 0 ? 'ok' : 'bad'}>Toplam Bakiye (Devir Dahil): {formatMoney(totalCombined)}</span>
+            </div>
+          </div>
+        );
+      })()}
       <p className="hint">Nakit ve POS gelirleri Günlük sekmesinden girilir, buradaki toplamlar otomatik hesaplanır.</p>
 
       <section>
