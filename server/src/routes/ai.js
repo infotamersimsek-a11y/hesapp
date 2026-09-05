@@ -71,9 +71,13 @@ router.post('/voice-entry', upload.single('audio'), async (req, res) => {
   res.json({ transcript, transactions });
 });
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function visionExtract(buffer, mimetype, systemPrompt) {
   const dataUrl = `data:${mimetype};base64,${buffer.toString('base64')}`;
-  const r = await fetch(`${GROQ_BASE}/chat/completions`, {
+  const call = () => fetch(`${GROQ_BASE}/chat/completions`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey()}`,
@@ -82,6 +86,7 @@ async function visionExtract(buffer, mimetype, systemPrompt) {
     body: JSON.stringify({
       model: VISION_MODEL,
       response_format: { type: 'json_object' },
+      max_tokens: 500,
       messages: [
         {
           role: 'user',
@@ -93,6 +98,15 @@ async function visionExtract(buffer, mimetype, systemPrompt) {
       ]
     })
   });
+
+  let r = await call();
+  if (r.status === 429) {
+    const errText = await r.text();
+    const match = errText.match(/try again in ([\d.]+)s/);
+    const waitMs = match ? Math.ceil(parseFloat(match[1]) * 1000) + 500 : 7000;
+    await sleep(Math.min(waitMs, 15000));
+    r = await call();
+  }
   if (!r.ok) throw new Error(`Groq görsel hatası: ${r.status} ${await r.text()}`);
   const data = await r.json();
   return JSON.parse(data.choices[0].message.content);
