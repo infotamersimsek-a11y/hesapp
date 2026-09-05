@@ -5,6 +5,7 @@ import { formatMoney } from './format';
 
 const now = new Date();
 const FIXED_EXPENSE_TYPES = ['Kira', 'Elektrik', 'Su', 'Doğalgaz', 'Ev Kirası', 'Ambalaj', 'Lale Gıda', 'Örgün Gıda', 'Coca-Cola', 'Diğer'];
+const SHOP_ABBR = { 'Hacıoğulları': 'H.O', 'Çıtır Tatlı': 'Ç.T' };
 const dateFormatter = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
 
 function mergeByKey(lists, key) {
@@ -248,10 +249,8 @@ export default function MonthlyTab({ shops }) {
               <span>Toplam Gelir: {formatMoney(totalIncome)}</span>
               <span>Toplam Gider: {formatMoney(totalExpense)}</span>
               <span className={totalBalance >= 0 ? 'ok' : 'bad'}>Bakiye: {formatMoney(totalBalance)}</span>
-            </div>
-            <div className="summary">
               {shops.map((sh) => (
-                <span key={sh.id}>Geçen Aydan Devreden — {sh.name}: {formatMoney(Math.max(0, prevSummaries[sh.id]?.balance ?? 0))}</span>
+                <span key={sh.id}>G.A.D: {SHOP_ABBR[sh.name] || sh.name} {formatMoney(Math.max(0, prevSummaries[sh.id]?.balance ?? 0))}</span>
               ))}
             </div>
           </div>

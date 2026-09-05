@@ -247,7 +247,7 @@ export default function DailyTab({ shops, defaultShopName }) {
               <option value="">{expenseCategory === CARD_PAYMENT_CATEGORY ? 'Kart seç' : 'Ödeme kartı yok (nakit/pos)'}</option>
               {cards.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {expenseCategory === CARD_PAYMENT_CATEGORY ? `${c.name} borcuna öde` : `${c.name} ile ödendi`}
+                  {expenseCategory === CARD_PAYMENT_CATEGORY ? `${c.name} ${c.owner} borcuna öde` : `${c.name} ${c.owner} ile ödendi`}
                 </option>
               ))}
             </select>

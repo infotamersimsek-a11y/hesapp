@@ -56,7 +56,7 @@ function BalancePhoto({ onRead }) {
     <span className="balance-photo">
       <label className="file-btn small">
         {busy ? '...' : '📷'}
-        <input type="file" accept="image/*" capture="environment" onChange={onFile} disabled={busy} hidden />
+        <input type="file" accept="image/*" onChange={onFile} disabled={busy} hidden />
       </label>
       {error && <span className="bad"> {error}</span>}
     </span>
@@ -89,7 +89,7 @@ function CardDetailsPhoto({ onRead }) {
     <span>
       <label className="file-btn">
         {busy ? 'Okunuyor...' : '📷 Fotoğraftan Doldur'}
-        <input type="file" accept="image/*" capture="environment" onChange={onFile} disabled={busy} hidden />
+        <input type="file" accept="image/*" onChange={onFile} disabled={busy} hidden />
       </label>
       {error && <p className="bad">{error}</p>}
     </span>
@@ -225,6 +225,7 @@ export default function CreditCardsTab() {
   const [statementDay, setStatementDay] = useState('');
   const [dueDay, setDueDay] = useState('');
   const [note, setNote] = useState('');
+  const [showDetails, setShowDetails] = useState(false);
 
   const reload = async () => {
     setCards(await api.creditCardsList());
@@ -260,6 +261,7 @@ export default function CreditCardsTab() {
     setStatementDay('');
     setDueDay('');
     setNote('');
+    setShowDetails(false);
     reload();
   };
 
@@ -341,25 +343,34 @@ export default function CreditCardsTab() {
             if (draft.statement_day != null) setStatementDay(String(draft.statement_day));
             if (draft.due_day != null) setDueDay(String(draft.due_day));
             if (draft.note) setNote(draft.note);
+            setShowDetails(true);
           }} />
 
-          {(type === 'Kredi Kartı' || type === 'Diğer') && (
-            <input type="text" placeholder="Kartın son 4 hanesi (opsiyonel)" maxLength={4} value={last4} onChange={(e) => setLast4(e.target.value.replace(/\D/g, ''))} />
+          {!showDetails && (
+            <button type="button" className="edit-link" onClick={() => setShowDetails(true)}>Elle doldur</button>
           )}
-          <input type="number" step="0.01" placeholder="Toplam limit (opsiyonel)" value={creditLimit} onChange={(e) => setCreditLimit(e.target.value)} />
-          <input type="number" step="0.01" placeholder="Güncel borç" value={debtAmount} onChange={(e) => setDebtAmount(e.target.value)} />
 
-          {(type === 'Kredi Kartı' || type === 'Diğer') && (
-            <label className="inline-label">
-              Hesap kesim günü (opsiyonel, 1-31)
-              <input type="number" min="1" max="31" value={statementDay} onChange={(e) => setStatementDay(e.target.value)} />
-            </label>
+          {showDetails && (
+            <>
+              {(type === 'Kredi Kartı' || type === 'Diğer') && (
+                <input type="text" placeholder="Kartın son 4 hanesi (opsiyonel)" maxLength={4} value={last4} onChange={(e) => setLast4(e.target.value.replace(/\D/g, ''))} />
+              )}
+              <input type="number" step="0.01" placeholder="Toplam limit (opsiyonel)" value={creditLimit} onChange={(e) => setCreditLimit(e.target.value)} />
+              <input type="number" step="0.01" placeholder="Güncel borç" value={debtAmount} onChange={(e) => setDebtAmount(e.target.value)} />
+
+              {(type === 'Kredi Kartı' || type === 'Diğer') && (
+                <label className="inline-label">
+                  Hesap kesim günü (opsiyonel, 1-31)
+                  <input type="number" min="1" max="31" value={statementDay} onChange={(e) => setStatementDay(e.target.value)} />
+                </label>
+              )}
+              <label className="inline-label">
+                Son ödeme günü (opsiyonel, 1-31)
+                <input type="number" min="1" max="31" value={dueDay} onChange={(e) => setDueDay(e.target.value)} />
+              </label>
+              <input type="text" placeholder="Not (opsiyonel)" value={note} onChange={(e) => setNote(e.target.value)} />
+            </>
           )}
-          <label className="inline-label">
-            Son ödeme günü (opsiyonel, 1-31)
-            <input type="number" min="1" max="31" value={dueDay} onChange={(e) => setDueDay(e.target.value)} />
-          </label>
-          <input type="text" placeholder="Not (opsiyonel)" value={note} onChange={(e) => setNote(e.target.value)} />
           <button type="submit">Ekle</button>
         </form>
       </section>
