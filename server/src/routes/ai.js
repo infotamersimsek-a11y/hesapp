@@ -118,7 +118,7 @@ router.post('/card-balance', upload.single('image'), async (req, res) => {
   res.json({ draft });
 });
 
-const DEBT_ADVICE_SYSTEM_PROMPT = `Sen deneyimli, öz konuşan bir finans danışmanısın. Türkçe yanıt ver. SADECE düz metin kullan — markdown biçimlendirmesi (yıldız/kalın işareti, tablo, # başlık, kod bloğu vb.) KULLANMA. Satır başında "•" ile madde listeleri yapabilirsin. Gereksiz uzatma yapma.`;
+const DEBT_ADVICE_SYSTEM_PROMPT = `Sen deneyimli, ÇOK ÖZ konuşan bir finans danışmanısın. Uzun analiz yapmazsın, direkt sonuca gidersin. Türkçe yanıt ver. SADECE düz metin kullan — markdown biçimlendirmesi (yıldız/kalın işareti, tablo, # başlık, kod bloğu vb.) KULLANMA. Satır başında "•" ile madde listeleri yapabilirsin. Toplam yanıtın 150 kelimeyi geçmesin.`;
 
 function stripMarkdown(text) {
   return text
@@ -152,13 +152,27 @@ router.get('/debt-advice', async (req, res) => {
       `SELECT COALESCE(SUM(amount),0) AS total FROM monthly_expense WHERE shop_id=$1 AND year=$2 AND month=$3`,
       [shop.id, year, month]
     );
+    const avgDaily = await pool.query(
+      `SELECT COALESCE(SUM(amount),0) AS total, COUNT(DISTINCT date) AS gun_sayisi FROM daily_income
+       WHERE shop_id=$1 AND EXTRACT(YEAR FROM date)=$2 AND EXTRACT(MONTH FROM date)=$3 AND EXTRACT(DOW FROM date) <> 0`,
+      [shop.id, year, month]
+    );
     const totalIncome = Number(income.rows[0].total);
     const totalExpense = Number(dailyExp.rows[0].total) + Number(fixedExp.rows[0].total);
-    shopSummaries.push({ dukkan: shop.name, bu_ayki_gelir: totalIncome, bu_ayki_gider: totalExpense, bu_ayki_bakiye: totalIncome - totalExpense });
+    const dayCount = Number(avgDaily.rows[0].gun_sayisi);
+    const avgDailyIncome = dayCount > 0 ? Number(avgDaily.rows[0].total) / dayCount : 0;
+    shopSummaries.push({
+      dukkan: shop.name,
+      bu_ayki_gelir: totalIncome,
+      bu_ayki_gider: totalExpense,
+      bu_ayki_bakiye: totalIncome - totalExpense,
+      gunluk_ortalama_ciro: Math.round(avgDailyIncome),
+    });
   }
 
   const totalDebt = cards.reduce((s, c) => s + Number(c.debt_amount), 0);
   const totalCash = shopSummaries.reduce((s, sh) => s + sh.bu_ayki_bakiye, 0);
+  const totalDailyRevenue = shopSummaries.reduce((s, sh) => s + sh.gunluk_ortalama_ciro, 0);
 
   const cardSummary = cards.map((c) => ({
     ad: c.name,
@@ -171,18 +185,19 @@ router.get('/debt-advice', async (req, res) => {
     hesap_kesim_gunu: c.statement_day,
   }));
 
-  const prompt = `Aşağıda bir işletmenin kredi kartı/borç durumu ve bu ayki nakit durumu var (JSON).
+  const prompt = `Aşağıda bir işletmenin kredi kartı/borç durumu ve nakit akışı var (JSON).
 
 KARTLAR: ${JSON.stringify(cardSummary)}
 TOPLAM BORÇ: ${totalDebt} TL
-BU AYKİ DÜKKAN DURUMU: ${JSON.stringify(shopSummaries)}
-TOPLAM NAKİT DURUMU (bu ay, iki dükkan toplamı): ${totalCash} TL
+DÜKKAN DURUMU (bu ay): ${JSON.stringify(shopSummaries)}
+GÜNLÜK ORTALAMA TOPLAM CİRO (iki dükkan, Pazar hariç): ${totalDailyRevenue} TL
+BU AYKİ TOPLAM NAKİT DURUMU: ${totalCash} TL
 
-Görevlerin:
-1. Son ödeme tarihi yaklaşan (7 gün içinde) kartları öne çıkar, hangi tarihte ne kadar ödeme gerektiğini belirt.
-2. Her "Kredi Kartı" türü için TAHMİNİ asgari ödeme tutarını hesapla (borcun %20'si makul bir kaba tahmindir). Esnek Hesap/İhtiyaç Kredisi/Cari Hesap için asgari ödeme kavramı farklıdır, onlar için sadece genel yorum yap. Bunun gerçek banka asgari tutarı OLMADIĞINI, sadece kaba bir tahmin olduğunu MUTLAKA belirt.
-3. Mevcut nakit durumuna göre hangi borcun/kartın önce kapatılması gerektiğine dair öncelik sırası öner (en yakın vadeli ve en küçük borçlu karttan başlamak mantıklı bir strateji, gerekçesini kısaca belirt).
-4. Kısa bir özet ve 2-3 somut öneriyle bitir.
+ÇOK KISA VE ÖZ yanıt ver, en fazla 5-6 madde, gereksiz detaya girme. TÜM kartları tek tek listeleme, sadece en kritik olan 2-3 kartı öne çıkar.
+
+1. Sadece 7 gün içinde ödemesi olan kart(lar) varsa, adını ve tutarını tek satırda belirt. Yoksa "yakın vadede ödeme yok" de.
+2. Günlük ortalama ciroya göre, işletmenin haftada/ayda ne kadar nakit üretebileceğini kabaca hesaba kat ve buna göre HANGİ 1-2 borcun öncelikli kapatılması gerektiğini kısaca söyle (küçük borç + yakın vade önceliklidir). Asgari ödeme rakamı istemiyorsan sadece 1 cümlelik kaba bir tahmin yeterli, banka asgarisi olmadığını belirt.
+3. En fazla 2 net, uygulanabilir öneriyle bitir.
 
 Yanıtı düz metin olarak ver — yıldız (**), tablo (|), başlık (#) gibi markdown işaretleri KULLANMA. Sadece "•" ile madde işareti kullanabilirsin.`;
 

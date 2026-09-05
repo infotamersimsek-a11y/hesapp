@@ -112,16 +112,110 @@ async function reconciliationFor(cardId, debtNow) {
   };
 }
 
+async function paymentHistoryBatch(cardIds) {
+  if (cardIds.length === 0) return new Map();
+  const { rows } = await pool.query(
+    `SELECT credit_card_id, amount, recorded_at FROM credit_card_debt_log WHERE credit_card_id = ANY($1) ORDER BY credit_card_id, recorded_at DESC`,
+    [cardIds]
+  );
+  const byCard = new Map();
+  for (const row of rows) {
+    if (!byCard.has(row.credit_card_id)) byCard.set(row.credit_card_id, []);
+    byCard.get(row.credit_card_id).push({ amount: Number(row.amount), recorded_at: row.recorded_at });
+  }
+  const result = new Map();
+  for (const [cardId, entries] of byCard) {
+    const top = entries.slice(0, 6);
+    const history = top.slice(0, 5).map((e, i) => {
+      const prev = top[i + 1];
+      const delta = prev ? Number((prev.amount - e.amount).toFixed(2)) : null;
+      return { ...e, delta };
+    });
+    result.set(cardId, history);
+  }
+  return result;
+}
+
+async function recentChargesBatch(cardIds) {
+  if (cardIds.length === 0) return new Map();
+  const since = new Date();
+  since.setDate(since.getDate() - 3);
+  const { rows } = await pool.query(
+    `SELECT credit_card_id, amount, category AS label, date, note FROM daily_expense
+     WHERE credit_card_id = ANY($1) AND date >= $2 AND category <> $3 ORDER BY credit_card_id, date DESC, id DESC`,
+    [cardIds, toDateStr(since), CARD_PAYMENT_CATEGORY]
+  );
+  const result = new Map();
+  for (const row of rows) {
+    if (!result.has(row.credit_card_id)) result.set(row.credit_card_id, []);
+    result.get(row.credit_card_id).push({ amount: Number(row.amount), label: row.label, date: row.date, note: row.note });
+  }
+  return result;
+}
+
+async function reconciliationBatch(cardIds, debtNowByCard) {
+  if (cardIds.length === 0) return new Map();
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthStartStr = toDateStr(monthStart);
+
+  const [priorLogRes, dailyExpRes, monthlyExpRes] = await Promise.all([
+    pool.query(
+      `SELECT DISTINCT ON (credit_card_id) credit_card_id, amount FROM credit_card_debt_log
+       WHERE credit_card_id = ANY($1) AND recorded_at < $2 ORDER BY credit_card_id, recorded_at DESC`,
+      [cardIds, monthStart]
+    ),
+    pool.query(
+      `SELECT credit_card_id, COALESCE(SUM(amount),0) AS total FROM daily_expense
+       WHERE credit_card_id = ANY($1) AND date >= $2 GROUP BY credit_card_id`,
+      [cardIds, monthStartStr]
+    ),
+    pool.query(
+      `SELECT credit_card_id, COALESCE(SUM(amount),0) AS total FROM monthly_expense
+       WHERE credit_card_id = ANY($1) AND year=$2 AND month=$3 GROUP BY credit_card_id`,
+      [cardIds, now.getFullYear(), now.getMonth() + 1]
+    ),
+  ]);
+  const priorLogMap = new Map(priorLogRes.rows.map((r) => [r.credit_card_id, Number(r.amount)]));
+  const dailyExpMap = new Map(dailyExpRes.rows.map((r) => [r.credit_card_id, Number(r.total)]));
+  const monthlyExpMap = new Map(monthlyExpRes.rows.map((r) => [r.credit_card_id, Number(r.total)]));
+
+  const result = new Map();
+  for (const cardId of cardIds) {
+    const debtStart = priorLogMap.has(cardId) ? priorLogMap.get(cardId) : null;
+    const recordedExpense = (dailyExpMap.get(cardId) || 0) + (monthlyExpMap.get(cardId) || 0);
+    const debtNow = debtNowByCard.get(cardId);
+    const cardSpend = debtStart === null ? null : Number((debtNow - debtStart).toFixed(2));
+    const discrepancy = cardSpend === null ? null : Number((cardSpend - recordedExpense).toFixed(2));
+    result.set(cardId, {
+      month_start: monthStartStr,
+      debt_start_of_month: debtStart,
+      card_spend_estimate: cardSpend,
+      recorded_expense_this_month: recordedExpense,
+      discrepancy,
+      flagged: discrepancy !== null && Math.abs(discrepancy) > 1,
+    });
+  }
+  return result;
+}
+
 router.get('/', async (req, res) => {
   const { rows } = await pool.query('SELECT * FROM credit_cards ORDER BY id');
-  const withCalc = await Promise.all(
-    rows.map(async (card) => ({
-      ...withComputed(card),
-      reconciliation: await reconciliationFor(card.id, Number(card.debt_amount)),
-      history: await paymentHistory(card.id),
-      recent_charges: await recentCharges(card.id),
-    }))
-  );
+  const cardIds = rows.map((c) => c.id);
+  const debtNowByCard = new Map(rows.map((c) => [c.id, Number(c.debt_amount)]));
+
+  const [historyMap, chargesMap, reconMap] = await Promise.all([
+    paymentHistoryBatch(cardIds),
+    recentChargesBatch(cardIds),
+    reconciliationBatch(cardIds, debtNowByCard),
+  ]);
+
+  const withCalc = rows.map((card) => ({
+    ...withComputed(card),
+    reconciliation: reconMap.get(card.id),
+    history: historyMap.get(card.id) || [],
+    recent_charges: chargesMap.get(card.id) || [],
+  }));
   res.json(withCalc);
 });
 

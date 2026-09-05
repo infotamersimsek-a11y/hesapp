@@ -63,6 +63,55 @@ function BalancePhoto({ onRead }) {
   );
 }
 
+function CardGroup({ g, onDone, onDelete }) {
+  const bankColor = getEntityColor(g.name);
+  const textColor = getContrastText(bankColor);
+  const anyDueSoon = g.items.some((c) => c.due_soon);
+  return (
+    <div
+      className={`credit-card${anyDueSoon ? ' due-soon' : ''}`}
+      style={{ background: bankColor, color: textColor }}
+    >
+      <div className="credit-card-header">
+        <strong style={{ color: textColor }}>{g.name} — {g.owner}</strong>
+      </div>
+
+      {g.items.map((c) => (
+        <div className="debt-item" key={c.id}>
+          <div className="credit-card-header">
+            <strong style={{ color: textColor }}>{c.type}{c.last4 ? ` •••• ${c.last4}` : ''}</strong>
+            {c.due_soon && <span className="backdated-flag">Son ödemeye {c.days_until_due} gün</span>}
+            <button className="delete-link" onClick={() => deleteCard(c)}>Sil</button>
+          </div>
+          <div className="credit-card-body" style={{ color: textColor }}>
+            <span className="label-debt">Borç: {formatMoney(c.debt_amount)}</span>
+            {c.credit_limit != null && <span className="label-limit">Kullanılabilir Limit: {formatMoney(c.available_limit)} / {formatMoney(c.credit_limit)}</span>}
+            {c.statement_day && <span className="label-statement">Hesap Kesim: {c.statement_day} (sıradaki: {formatDate(c.next_statement_date)})</span>}
+            {c.due_day && <span className="label-due">Son Ödeme: {c.due_day} (sıradaki: {formatDate(c.next_due_date)})</span>}
+            {c.note && <span>Not: {c.note}</span>}
+            {c.history.filter((h) => h.delta != null).slice(0, 2).map((h, i) => (
+              <span key={i} className="hint" style={{ color: textColor, opacity: 0.85 }}>
+                {h.delta > 0 ? `Ödeme: ${formatMoney(h.delta)}` : `Borç artışı: ${formatMoney(-h.delta)}`} — {formatDate(h.recorded_at)}
+              </span>
+            ))}
+            {c.recent_charges.length > 0 && (
+              <div className="recent-charges">
+                <span className="hint" style={{ color: textColor }}>Son 3 gün bu karttan yapılan harcamalar:</span>
+                {c.recent_charges.map((r, i) => (
+                  <span key={i} className="hint" style={{ color: textColor, opacity: 0.85 }}>
+                    {g.name} kartından {formatMoney(r.amount)} ödeme yapıldı — {r.label}{r.note ? ` (${r.note})` : ''} — {formatDate(r.date)}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          <DebtActions card={c} onDone={onDone} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function DebtActions({ card, onDone }) {
   const [amount, setAmount] = useState(card.debt_amount);
 
@@ -263,58 +312,20 @@ export default function CreditCardsTab() {
         </form>
       </section>
 
-      <div className="card-list">
-        {groups.length === 0 && <p className="hint">Henüz kart yok.</p>}
-        {groups.map((g) => {
-          const bankColor = getEntityColor(g.name);
-          const textColor = getContrastText(bankColor);
-          const anyDueSoon = g.items.some((c) => c.due_soon);
-          return (
-            <div
-              className={`credit-card${anyDueSoon ? ' due-soon' : ''}`}
-              style={{ background: bankColor, color: textColor }}
-              key={`${g.name}||${g.owner}`}
-            >
-              <div className="credit-card-header">
-                <strong style={{ color: textColor }}>{g.name} — {g.owner}</strong>
-              </div>
-
-              {g.items.map((c) => (
-                <div className="debt-item" key={c.id}>
-                  <div className="credit-card-header">
-                    <strong style={{ color: textColor }}>{c.type}{c.last4 ? ` •••• ${c.last4}` : ''}</strong>
-                    {c.due_soon && <span className="backdated-flag">Son ödemeye {c.days_until_due} gün</span>}
-                    <button className="delete-link" onClick={() => deleteCard(c)}>Sil</button>
-                  </div>
-                  <div className="credit-card-body" style={{ color: textColor }}>
-                    <span className="label-debt">Borç: {formatMoney(c.debt_amount)}</span>
-                    {c.credit_limit != null && <span className="label-limit">Kullanılabilir Limit: {formatMoney(c.available_limit)} / {formatMoney(c.credit_limit)}</span>}
-                    {c.statement_day && <span className="label-statement">Hesap Kesim: {c.statement_day} (sıradaki: {formatDate(c.next_statement_date)})</span>}
-                    {c.due_day && <span className="label-due">Son Ödeme: {c.due_day} (sıradaki: {formatDate(c.next_due_date)})</span>}
-                    {c.note && <span>Not: {c.note}</span>}
-                    {c.history.filter((h) => h.delta != null).slice(0, 2).map((h, i) => (
-                      <span key={i} className="hint" style={{ color: textColor, opacity: 0.85 }}>
-                        {h.delta > 0 ? `Ödeme: ${formatMoney(h.delta)}` : `Borç artışı: ${formatMoney(-h.delta)}`} — {formatDate(h.recorded_at)}
-                      </span>
-                    ))}
-                    {c.recent_charges.length > 0 && (
-                      <div className="recent-charges">
-                        <span className="hint" style={{ color: textColor }}>Son 3 gün bu karttan yapılan harcamalar:</span>
-                        {c.recent_charges.map((r, i) => (
-                          <span key={i} className="hint" style={{ color: textColor, opacity: 0.85 }}>
-                            {g.name} kartından {formatMoney(r.amount)} ödeme yapıldı — {r.label}{r.note ? ` (${r.note})` : ''} — {formatDate(r.date)}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <DebtActions card={c} onDone={reload} />
-                </div>
+      {OWNERS.map((ownerName) => {
+        const ownerGroups = groups.filter((g) => g.owner === ownerName);
+        return (
+          <div key={ownerName}>
+            <h3>{ownerName}</h3>
+            <div className="card-list">
+              {ownerGroups.length === 0 && <p className="hint">{ownerName}'e ait kart yok.</p>}
+              {ownerGroups.map((g) => (
+                <CardGroup key={`${g.name}||${g.owner}`} g={g} onDone={reload} onDelete={deleteCard} />
               ))}
             </div>
-          );
-        })}
-      </div>
+          </div>
+        );
+      })}
 
       <DebtAdvisor />
     </div>
