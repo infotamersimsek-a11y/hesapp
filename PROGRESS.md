@@ -454,3 +454,8 @@ Neon/Groq olmadan hızlı görsel test için: `cd server && npm run preview` (be
 - **Ek istek (aynı oturumda):** Kullanıcı aylık ekrandaki "G.A.D: H.O / G.A.D: Ç.T" kısaltmasını beğenmedi — "Toplam Gelir kısmında Bakiye'nin yanına dükkan adlarını TAM yaz, kısaltma yapma" dedi. `client/src/MonthlyTab.jsx`: `SHOP_ABBR` kaldırıldı, etiket "G.A.D" yerine "Geçen Ay" oldu, dükkan adları tam yazılıyor: "Geçen Ay: Hacıoğulları 0 ₺  Geçen Ay: Çıtır Tatlı 20,3 bin ₺".
 - Test edildi: aynı sahte kart görseliyle art arda birden fazla çağrı yapıldı, `max_tokens` düzeltmesiyle deterministik 429 ortadan kalktı, dinamik retry ITPM kotasına takıldığında bazı denemelerde otomatik kurtarabildi. Canlıda `debt-advice` (metin modeli, düzeltme sonrası) doğru uzunlukta yanıt döndürdüğü doğrulandı.
 - Build temiz, commit+push edildi, Vercel otomatik deploy etti.
+
+## Banka Listesine Kuveyt Türk ve Albaraka Eklendi
+- 2026-09-05: Kullanıcı isteği: "Kuveyt Türk" ve "Albaraka" da Kart Ekle formundaki banka dropdown'una eklensin — kullanıcının zaten bu iki bankadan gerçek kartları var (`Diğer` ile serbest metin olarak girilmişti), ama resmi listede yoktu.
+- `client/src/bankColors.js`: `BANKS` dizisine `Kuveyt Türk` (`#00558C`, regex `/kuveyt ?t[üu]rk/i`) ve `Albaraka` (`#7A1F2B`, regex `/albaraka/i`) eklendi. **Bonus:** bu iki banka daha önce renk eşleşmesi olmadığı için kart kutucuklarında gri (varsayılan) renkte görünüyordu — artık kendi kurumsal renklerinde görünecekler (regex zaten var olan "Kuveyt Türk"/"Albaraka" isimli gerçek kartlarla otomatik eşleşiyor, veri değişikliği gerekmedi).
+- Test edildi: banka dropdown'unda "Kuveyt Türk" ve "Albaraka" seçenekleri doğru çıktı. Build temiz, commit+push edildi, Vercel otomatik deploy etti.
