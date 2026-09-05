@@ -56,4 +56,5 @@ export const api = {
   creditCardCreate: (body) => request('/credit-cards', { method: 'POST', body: JSON.stringify(body) }),
   creditCardUpdate: (id, body) => request(`/credit-cards/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   creditCardDelete: (id) => request(`/credit-cards/${id}`, { method: 'DELETE' }),
+  creditCardDefer: (id, deferred) => request(`/credit-cards/${id}/defer`, { method: 'PUT', body: JSON.stringify({ deferred }) }),
 };

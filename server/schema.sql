@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS credit_cards (
   debt_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
   statement_day INTEGER CHECK (statement_day BETWEEN 1 AND 31),
   due_day INTEGER CHECK (due_day BETWEEN 1 AND 31),
-  note TEXT
+  note TEXT,
+  deferred_month TEXT
 );
 
 CREATE TABLE IF NOT EXISTS credit_card_debt_log (

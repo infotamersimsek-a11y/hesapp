@@ -193,6 +193,7 @@ router.get('/debt-advice', async (req, res) => {
     son_odeme_gunu: c.due_day,
     son_odemeye_kalan_gun: c.days_until_due,
     hesap_kesim_gunu: c.statement_day,
+    bu_ay_ertelendi: !!c.is_deferred_this_month,
   }));
 
   const prompt = `Aşağıda bir işletmenin kredi kartı/borç durumu ve nakit akışı var (JSON).
@@ -205,9 +206,10 @@ BU AYKİ TOPLAM NAKİT DURUMU: ${totalCash} TL
 
 ÇOK KISA VE ÖZ yanıt ver, en fazla 5-6 madde, gereksiz detaya girme. TÜM kartları tek tek listeleme, sadece en kritik olan 2-3 kartı öne çıkar.
 
-1. Sadece 7 gün içinde ödemesi olan kart(lar) varsa, adını ve tutarını tek satırda belirt. Yoksa "yakın vadede ödeme yok" de.
-2. Günlük ortalama ciroya göre, işletmenin haftada/ayda ne kadar nakit üretebileceğini kabaca hesaba kat ve buna göre HANGİ 1-2 borcun öncelikli kapatılması gerektiğini kısaca söyle (küçük borç + yakın vade önceliklidir). Asgari ödeme rakamı istemiyorsan sadece 1 cümlelik kaba bir tahmin yeterli, banka asgarisi olmadığını belirt.
-3. En fazla 2 net, uygulanabilir öneriyle bitir.
+1. "bu_ay_ertelendi": true olan kartlar varsa, bunları tek satırda say ("X kartı bu ay ertelendi, ödeme planlanmıyor") — bu kartları ödeme önceliği listesine DAHİL ETME, onlara ayrılacak bütçeyi diğer kartlara yönlendirmeyi öner.
+2. Ertelenmemiş kartlardan sadece 7 gün içinde ödemesi olan varsa, adını ve tutarını tek satırda belirt. Yoksa "yakın vadede ödeme yok" de.
+3. Günlük ortalama ciroya göre, işletmenin haftada/ayda ne kadar nakit üretebileceğini kabaca hesaba kat ve buna göre (ertelenenler hariç) HANGİ 1-2 borcun öncelikli kapatılması gerektiğini kısaca söyle (küçük borç + yakın vade önceliklidir). Asgari ödeme rakamı istemiyorsan sadece 1 cümlelik kaba bir tahmin yeterli, banka asgarisi olmadığını belirt.
+4. En fazla 2 net, uygulanabilir öneriyle bitir.
 
 Yanıtı düz metin olarak ver — yıldız (**), tablo (|), başlık (#) gibi markdown işaretleri KULLANMA. Sadece "•" ile madde işareti kullanabilirsin.`;
 

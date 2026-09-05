@@ -721,6 +721,21 @@ li button {
 .label-statement::before { color: #ffd54f; }
 .label-limit::before { color: #64b5f6; }
 
+.deferred-flag {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #fff;
+  background: #757575;
+  padding: 1px 8px;
+  border-radius: 4px;
+}
+
+.defer-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .inline-update button.debt-update-btn {
   background: #8b0000;
 }

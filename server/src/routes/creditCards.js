@@ -40,6 +40,11 @@ function daysUntil(date, from = new Date()) {
   return Math.round((date - todayMidnight) / 86400000);
 }
 
+export function currentYearMonth() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
 export function withComputed(card) {
   const nextStatementDate = nextOccurrence(card.statement_day);
   const nextDueDate = nextOccurrence(card.due_day);
@@ -52,6 +57,7 @@ export function withComputed(card) {
     days_until_due: daysUntilDue,
     due_soon: daysUntilDue !== null && daysUntilDue <= 3,
     available_limit: creditLimit === null ? null : Number((creditLimit - Number(card.debt_amount)).toFixed(2)),
+    is_deferred_this_month: card.deferred_month === currentYearMonth(),
   };
 }
 
@@ -217,6 +223,17 @@ router.get('/', async (req, res) => {
     recent_charges: chargesMap.get(card.id) || [],
   }));
   res.json(withCalc);
+});
+
+router.put('/:id/defer', async (req, res) => {
+  const { deferred } = req.body;
+  const value = deferred ? currentYearMonth() : null;
+  const { rows } = await pool.query(
+    'UPDATE credit_cards SET deferred_month=$1 WHERE id=$2 RETURNING *',
+    [value, req.params.id]
+  );
+  if (!rows.length) return res.status(404).json({ error: 'not found' });
+  res.json(withComputed(rows[0]));
 });
 
 router.post('/', async (req, res) => {

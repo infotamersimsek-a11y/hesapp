@@ -96,7 +96,7 @@ function CardDetailsPhoto({ onRead }) {
   );
 }
 
-function CardGroup({ g, onDone, onDelete }) {
+function CardGroup({ g, onDone, onDelete, onDefer }) {
   const bankColor = getEntityColor(g.name);
   const textColor = getContrastText(bankColor);
   const anyDueSoon = g.items.some((c) => c.due_soon);
@@ -114,10 +114,15 @@ function CardGroup({ g, onDone, onDelete }) {
           <div className="credit-card-header">
             <strong style={{ color: textColor }}>{c.type}{c.last4 ? ` •••• ${c.last4}` : ''}</strong>
             {c.due_soon && <span className="backdated-flag">Son ödemeye {c.days_until_due} gün</span>}
+            {c.is_deferred_this_month && <span className="deferred-flag">Bu ay ertelendi</span>}
             <button className="delete-link" onClick={() => onDelete(c)}>Sil</button>
           </div>
           <div className="credit-card-body" style={{ color: textColor }}>
             <span className="label-debt">Borç: {formatMoney(c.debt_amount)}</span>
+            <label className="hint defer-toggle" style={{ color: textColor }}>
+              <input type="checkbox" checked={!!c.is_deferred_this_month} onChange={(e) => onDefer(c.id, e.target.checked)} />
+              Bu ay ödemeyi ertele
+            </label>
             {c.credit_limit != null && <span className="label-limit">Kullanılabilir Limit: {formatMoney(c.available_limit)} / {formatMoney(c.credit_limit)}</span>}
             {c.statement_day && <span className="label-statement">Hesap Kesim: {c.statement_day} (sıradaki: {formatDate(c.next_statement_date)})</span>}
             {c.due_day && <span className="label-due">Son Ödeme: {c.due_day} (sıradaki: {formatDate(c.next_due_date)})</span>}
@@ -268,6 +273,11 @@ export default function CreditCardsTab() {
     }
   };
 
+  const deferCard = async (id, deferred) => {
+    await api.creditCardDefer(id, deferred);
+    reload();
+  };
+
   const totalDebt = cards.reduce((s, c) => s + Number(c.debt_amount), 0);
   const groups = groupCards(cards);
 
@@ -362,7 +372,7 @@ export default function CreditCardsTab() {
             <div className="card-list">
               {ownerGroups.length === 0 && <p className="hint">{ownerName}'e ait kart yok.</p>}
               {ownerGroups.map((g) => (
-                <CardGroup key={`${g.name}||${g.owner}`} g={g} onDone={reload} onDelete={deleteCard} />
+                <CardGroup key={`${g.name}||${g.owner}`} g={g} onDone={reload} onDelete={deleteCard} onDefer={deferCard} />
               ))}
             </div>
           </div>
