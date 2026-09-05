@@ -96,6 +96,35 @@ function DebtActions({ card, onDone }) {
   );
 }
 
+function DebtAdvisor() {
+  const [busy, setBusy] = useState(false);
+  const [advice, setAdvice] = useState(null);
+  const [error, setError] = useState(null);
+
+  const analyze = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await api.debtAdvice();
+      setAdvice(result.advice);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="ai-entry">
+      <h3>Yapay Zeka Borç Asistanı</h3>
+      <p className="hint">Tüm kartları, ödeme tarihlerini ve bu ayki nakit durumunu analiz edip borç kapatma önerisi sunar. Asgari ödeme tutarları tahminidir, gerçek banka tutarı değildir.</p>
+      <button type="button" onClick={analyze} disabled={busy}>{busy ? 'Analiz ediliyor...' : 'Analiz Et'}</button>
+      {error && <p className="bad">{error}</p>}
+      {advice && <div className="ai-advice">{advice}</div>}
+    </section>
+  );
+}
+
 export default function CreditCardsTab() {
   const [cards, setCards] = useState([]);
   const [bankChoice, setBankChoice] = useState(TURKISH_BANKS[0]);
@@ -286,6 +315,8 @@ export default function CreditCardsTab() {
           );
         })}
       </div>
+
+      <DebtAdvisor />
     </div>
   );
 }

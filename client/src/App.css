@@ -578,6 +578,17 @@ li button {
   background: #d32f2f;
 }
 
+.ai-advice {
+  margin-top: 12px;
+  padding: 14px;
+  background: #f4f7fc;
+  border: 1px solid #dbe4f3;
+  border-radius: 8px;
+  white-space: pre-line;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 .ai-confirm {
   margin-top: 12px;
   padding: 12px;

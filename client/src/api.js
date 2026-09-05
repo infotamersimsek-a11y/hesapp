@@ -49,6 +49,7 @@ export const api = {
   voiceEntry: (formData) => request('/ai/voice-entry', { method: 'POST', body: formData }),
   receiptExpense: (formData) => request('/ai/receipt-expense', { method: 'POST', body: formData }),
   cardBalance: (formData) => request('/ai/card-balance', { method: 'POST', body: formData }),
+  debtAdvice: () => request('/ai/debt-advice'),
 
   creditCardsList: () => request('/credit-cards'),
   creditCardCreate: (body) => request('/credit-cards', { method: 'POST', body: JSON.stringify(body) }),

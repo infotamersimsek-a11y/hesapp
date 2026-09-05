@@ -40,7 +40,7 @@ function daysUntil(date, from = new Date()) {
   return Math.round((date - todayMidnight) / 86400000);
 }
 
-function withComputed(card) {
+export function withComputed(card) {
   const nextStatementDate = nextOccurrence(card.statement_day);
   const nextDueDate = nextOccurrence(card.due_day);
   const daysUntilDue = daysUntil(nextDueDate);

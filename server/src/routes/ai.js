@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
+import { pool } from '../db.js';
+import { withComputed } from './creditCards.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
@@ -114,6 +116,90 @@ router.post('/card-balance', upload.single('image'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'image dosyası gerekli' });
   const draft = await visionExtract(req.file.buffer, req.file.mimetype, CARD_BALANCE_SYSTEM_PROMPT);
   res.json({ draft });
+});
+
+const DEBT_ADVICE_SYSTEM_PROMPT = `Sen deneyimli, öz konuşan bir finans danışmanısın. Türkçe yanıt ver. SADECE düz metin kullan — markdown biçimlendirmesi (yıldız/kalın işareti, tablo, # başlık, kod bloğu vb.) KULLANMA. Satır başında "•" ile madde listeleri yapabilirsin. Gereksiz uzatma yapma.`;
+
+function stripMarkdown(text) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/(?<!\*)\*(?!\*)(.*?)\*(?!\*)/g, '$1')
+    .replace(/^#{1,6}\s*/gm, '')
+    .replace(/\|/g, ' ')
+    .replace(/^\s*-{3,}\s*$/gm, '');
+}
+
+router.get('/debt-advice', async (req, res) => {
+  const cardsRes = await pool.query('SELECT * FROM credit_cards ORDER BY id');
+  const cards = cardsRes.rows.map(withComputed);
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+
+  const shopsRes = await pool.query('SELECT * FROM shops ORDER BY id');
+  const shopSummaries = [];
+  for (const shop of shopsRes.rows) {
+    const income = await pool.query(
+      `SELECT COALESCE(SUM(amount),0) AS total FROM daily_income WHERE shop_id=$1 AND EXTRACT(YEAR FROM date)=$2 AND EXTRACT(MONTH FROM date)=$3`,
+      [shop.id, year, month]
+    );
+    const dailyExp = await pool.query(
+      `SELECT COALESCE(SUM(amount),0) AS total FROM daily_expense WHERE shop_id=$1 AND EXTRACT(YEAR FROM date)=$2 AND EXTRACT(MONTH FROM date)=$3`,
+      [shop.id, year, month]
+    );
+    const fixedExp = await pool.query(
+      `SELECT COALESCE(SUM(amount),0) AS total FROM monthly_expense WHERE shop_id=$1 AND year=$2 AND month=$3`,
+      [shop.id, year, month]
+    );
+    const totalIncome = Number(income.rows[0].total);
+    const totalExpense = Number(dailyExp.rows[0].total) + Number(fixedExp.rows[0].total);
+    shopSummaries.push({ dukkan: shop.name, bu_ayki_gelir: totalIncome, bu_ayki_gider: totalExpense, bu_ayki_bakiye: totalIncome - totalExpense });
+  }
+
+  const totalDebt = cards.reduce((s, c) => s + Number(c.debt_amount), 0);
+  const totalCash = shopSummaries.reduce((s, sh) => s + sh.bu_ayki_bakiye, 0);
+
+  const cardSummary = cards.map((c) => ({
+    ad: c.name,
+    sahip: c.owner,
+    tur: c.type,
+    borc: Number(c.debt_amount),
+    limit: c.credit_limit != null ? Number(c.credit_limit) : null,
+    son_odeme_gunu: c.due_day,
+    son_odemeye_kalan_gun: c.days_until_due,
+    hesap_kesim_gunu: c.statement_day,
+  }));
+
+  const prompt = `Aşağıda bir işletmenin kredi kartı/borç durumu ve bu ayki nakit durumu var (JSON).
+
+KARTLAR: ${JSON.stringify(cardSummary)}
+TOPLAM BORÇ: ${totalDebt} TL
+BU AYKİ DÜKKAN DURUMU: ${JSON.stringify(shopSummaries)}
+TOPLAM NAKİT DURUMU (bu ay, iki dükkan toplamı): ${totalCash} TL
+
+Görevlerin:
+1. Son ödeme tarihi yaklaşan (7 gün içinde) kartları öne çıkar, hangi tarihte ne kadar ödeme gerektiğini belirt.
+2. Her "Kredi Kartı" türü için TAHMİNİ asgari ödeme tutarını hesapla (borcun %20'si makul bir kaba tahmindir). Esnek Hesap/İhtiyaç Kredisi/Cari Hesap için asgari ödeme kavramı farklıdır, onlar için sadece genel yorum yap. Bunun gerçek banka asgari tutarı OLMADIĞINI, sadece kaba bir tahmin olduğunu MUTLAKA belirt.
+3. Mevcut nakit durumuna göre hangi borcun/kartın önce kapatılması gerektiğine dair öncelik sırası öner (en yakın vadeli ve en küçük borçlu karttan başlamak mantıklı bir strateji, gerekçesini kısaca belirt).
+4. Kısa bir özet ve 2-3 somut öneriyle bitir.
+
+Yanıtı düz metin olarak ver — yıldız (**), tablo (|), başlık (#) gibi markdown işaretleri KULLANMA. Sadece "•" ile madde işareti kullanabilirsin.`;
+
+  const aiRes = await fetch(`${GROQ_BASE}/chat/completions`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: TEXT_MODEL,
+      messages: [
+        { role: 'system', content: DEBT_ADVICE_SYSTEM_PROMPT },
+        { role: 'user', content: prompt },
+      ],
+    }),
+  });
+  if (!aiRes.ok) throw new Error(`Groq analiz hatası: ${aiRes.status} ${await aiRes.text()}`);
+  const data = await aiRes.json();
+  res.json({ advice: stripMarkdown(data.choices[0].message.content), generated_at: new Date().toISOString() });
 });
 
 export default router;
