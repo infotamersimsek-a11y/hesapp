@@ -24,6 +24,7 @@ const isFreeEditDate = (isoDate) => FREE_EDIT_DATES.includes(isoDate.slice(0, 10
 const DAYS_PER_PAGE = 3;
 const EXPENSE_CATEGORIES = ['Yemek', 'Temizlik', 'Kişisel Giderler', 'Ekstra Giderler', 'Ürün Alımı', 'Kredi Kartı Ödemesi', 'Diğer'];
 const CARD_PAYMENT_CATEGORY = 'Kredi Kartı Ödemesi';
+const CARD_OWNER_SHOP = { Tamer: 'Çıtır Tatlı', Ramazan: 'Hacıoğulları' };
 
 const dateFormatter = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
 const formatDate = (isoDate) => dateFormatter.format(new Date(isoDate));
@@ -160,9 +161,16 @@ export default function DailyTab({ shops, defaultShopName }) {
       return;
     }
     setError(null);
+    let effectiveShopId = shopId;
+    if (expenseCategory === CARD_PAYMENT_CATEGORY && expenseCardId) {
+      const card = cards.find((c) => c.id === Number(expenseCardId));
+      const targetShopName = card ? CARD_OWNER_SHOP[card.owner] : null;
+      const targetShop = targetShopName ? shops.find((s) => s.name === targetShopName) : null;
+      if (targetShop) effectiveShopId = targetShop.id;
+    }
     try {
       await api.dailyExpenseCreate({
-        shop_id: shopId,
+        shop_id: effectiveShopId,
         date,
         category: expenseCategory,
         amount: expenseAmount,
@@ -173,6 +181,10 @@ export default function DailyTab({ shops, defaultShopName }) {
       setExpenseAmount('');
       setExpenseNote('');
       setExpenseCardId('');
+      if (effectiveShopId !== shopId) {
+        const targetShop = shops.find((s) => s.id === effectiveShopId);
+        alert(`Ödeme ${targetShop?.name ?? 'ilgili dükkana'} kaydedildi (kart sahibine göre otomatik)`);
+      }
       reload();
     } catch (err) {
       setError(err.message);
