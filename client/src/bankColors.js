@@ -9,6 +9,8 @@ const BANKS = [
   { name: 'QNB Finansbank', match: /qnb|finansbank/i, color: '#6E2585' },
   { name: 'DenizBank', match: /deniz ?bank/i, color: '#0046AD' },
   { name: 'TEB', match: /\bteb\b/i, color: '#00A651' },
+  { name: 'Kuveyt Türk', match: /kuveyt ?t[üu]rk/i, color: '#00558C' },
+  { name: 'Albaraka', match: /albaraka/i, color: '#7A1F2B' },
 ];
 
 export const TURKISH_BANKS = BANKS.map((b) => b.name);
