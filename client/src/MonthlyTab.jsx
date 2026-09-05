@@ -220,8 +220,6 @@ export default function MonthlyTab({ shops }) {
       {shops.map((s) => {
         const sum = summaries[s.id];
         if (!sum) return null;
-        const carryOver = Math.max(0, prevSummaries[s.id]?.balance ?? 0);
-        const combinedTotal = sum.balance + carryOver;
         return (
           <div className="shop-summary-block" key={s.id}>
             <h3>{s.name}</h3>
@@ -233,10 +231,6 @@ export default function MonthlyTab({ shops }) {
               {s.id === hacId && <span>Sabit Gider: {formatMoney(sum.fixedExpense)}</span>}
               <span className={sum.balance >= 0 ? 'ok' : 'bad'}>Bakiye: {formatMoney(sum.balance)}</span>
             </div>
-            <div className="summary">
-              <span>Geçen Aydan Devreden: {formatMoney(carryOver)}</span>
-              <span className={combinedTotal >= 0 ? 'ok' : 'bad'}>Toplam Bakiye (Devir Dahil): {formatMoney(combinedTotal)}</span>
-            </div>
           </div>
         );
       })}
@@ -247,8 +241,6 @@ export default function MonthlyTab({ shops }) {
         const totalIncome = validSums.reduce((s, v) => s + v.totalIncome, 0);
         const totalExpense = validSums.reduce((s, v) => s + v.totalExpense, 0);
         const totalBalance = totalIncome - totalExpense;
-        const totalCarryOver = shops.reduce((s, sh) => s + Math.max(0, prevSummaries[sh.id]?.balance ?? 0), 0);
-        const totalCombined = totalBalance + totalCarryOver;
         return (
           <div className="shop-summary-block">
             <h3>Toplam (İki Dükkan)</h3>
@@ -258,8 +250,9 @@ export default function MonthlyTab({ shops }) {
               <span className={totalBalance >= 0 ? 'ok' : 'bad'}>Bakiye: {formatMoney(totalBalance)}</span>
             </div>
             <div className="summary">
-              <span>Geçen Aydan Devreden: {formatMoney(totalCarryOver)}</span>
-              <span className={totalCombined >= 0 ? 'ok' : 'bad'}>Toplam Bakiye (Devir Dahil): {formatMoney(totalCombined)}</span>
+              {shops.map((sh) => (
+                <span key={sh.id}>Geçen Aydan Devreden — {sh.name}: {formatMoney(Math.max(0, prevSummaries[sh.id]?.balance ?? 0))}</span>
+              ))}
             </div>
           </div>
         );
