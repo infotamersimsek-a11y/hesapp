@@ -63,6 +63,39 @@ function BalancePhoto({ onRead }) {
   );
 }
 
+function CardDetailsPhoto({ onRead }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const onFile = async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append('image', file);
+      const result = await api.cardDetails(form);
+      onRead(result.draft);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <span>
+      <label className="file-btn">
+        {busy ? 'Okunuyor...' : '📷 Fotoğraftan Doldur'}
+        <input type="file" accept="image/*" capture="environment" onChange={onFile} disabled={busy} hidden />
+      </label>
+      {error && <p className="bad">{error}</p>}
+    </span>
+  );
+}
+
 function CardGroup({ g, onDone, onDelete }) {
   const bankColor = getEntityColor(g.name);
   const textColor = getContrastText(bankColor);
@@ -81,7 +114,7 @@ function CardGroup({ g, onDone, onDelete }) {
           <div className="credit-card-header">
             <strong style={{ color: textColor }}>{c.type}{c.last4 ? ` •••• ${c.last4}` : ''}</strong>
             {c.due_soon && <span className="backdated-flag">Son ödemeye {c.days_until_due} gün</span>}
-            <button className="delete-link" onClick={() => deleteCard(c)}>Sil</button>
+            <button className="delete-link" onClick={() => onDelete(c)}>Sil</button>
           </div>
           <div className="credit-card-body" style={{ color: textColor }}>
             <span className="label-debt">Borç: {formatMoney(c.debt_amount)}</span>
@@ -290,6 +323,15 @@ export default function CreditCardsTab() {
           {type === 'Diğer' && (
             <input type="text" placeholder="Tür adı" value={typeCustom} onChange={(e) => setTypeCustom(e.target.value)} required />
           )}
+
+          <CardDetailsPhoto onRead={(draft) => {
+            if (draft.last4) setLast4(String(draft.last4).replace(/\D/g, '').slice(0, 4));
+            if (draft.credit_limit != null) setCreditLimit(String(draft.credit_limit));
+            if (draft.debt_amount != null) setDebtAmount(String(draft.debt_amount));
+            if (draft.statement_day != null) setStatementDay(String(draft.statement_day));
+            if (draft.due_day != null) setDueDay(String(draft.due_day));
+            if (draft.note) setNote(draft.note);
+          }} />
 
           {(type === 'Kredi Kartı' || type === 'Diğer') && (
             <input type="text" placeholder="Kartın son 4 hanesi (opsiyonel)" maxLength={4} value={last4} onChange={(e) => setLast4(e.target.value.replace(/\D/g, ''))} />

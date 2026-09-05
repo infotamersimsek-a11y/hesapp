@@ -118,6 +118,16 @@ router.post('/card-balance', upload.single('image'), async (req, res) => {
   res.json({ draft });
 });
 
+const CARD_DETAILS_SYSTEM_PROMPT = `Bir banka/kredi kartı mobil uygulaması ekran görüntüsüne veya kart ekstresine bakıyorsun. Kartın son 4 hanesini, toplam limitini, güncel borcunu, hesap kesim gününü ve son ödeme gününü bul. SADECE şu JSON formatında döndür, başka hiçbir metin ekleme:
+{"last4": string veya null, "credit_limit": sayı veya null, "debt_amount": sayı veya null, "statement_day": sayı veya null, "due_day": sayı veya null, "note": ek bilgi veya null}
+Tutarları sadece sayı olarak yaz (₺, TL gibi birimleri çıkar). statement_day/due_day SADECE ayın günü olarak yaz (örn 15), tam tarih yazma. Emin olmadığın alanları null bırak.`;
+
+router.post('/card-details', upload.single('image'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'image dosyası gerekli' });
+  const draft = await visionExtract(req.file.buffer, req.file.mimetype, CARD_DETAILS_SYSTEM_PROMPT);
+  res.json({ draft });
+});
+
 const DEBT_ADVICE_SYSTEM_PROMPT = `Sen deneyimli, ÇOK ÖZ konuşan bir finans danışmanısın. Uzun analiz yapmazsın, direkt sonuca gidersin. Türkçe yanıt ver. SADECE düz metin kullan — markdown biçimlendirmesi (yıldız/kalın işareti, tablo, # başlık, kod bloğu vb.) KULLANMA. Satır başında "•" ile madde listeleri yapabilirsin. Toplam yanıtın 150 kelimeyi geçmesin.`;
 
 function stripMarkdown(text) {
