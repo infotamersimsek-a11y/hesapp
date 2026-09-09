@@ -311,6 +311,16 @@ export default function MonthlyTab({ shops }) {
                   <li key={r.category}><span>{r.category}</span><span>{formatMoney(r.total)}</span></li>
                 ))}
               </ul>
+              {sum.otherExpenseDetails?.length > 0 && (
+                <>
+                  <p className="hint">"Diğer" içindeki 100 ₺ üzeri harcamalar:</p>
+                  <ul className="report-list">
+                    {sum.otherExpenseDetails.map((r, i) => (
+                      <li key={i}><span>{r.note || '(not yok)'} — {r.date}</span><span>{formatMoney(r.amount)}</span></li>
+                    ))}
+                  </ul>
+                </>
+              )}
               {s.id === hacId && (
                 <>
                   <h4>Sabit Gider — Firma Bazlı</h4>
@@ -330,6 +340,9 @@ export default function MonthlyTab({ shops }) {
           const validSums = shops.map((s) => summaries[s.id]).filter(Boolean);
           const combinedCategory = mergeByKey(validSums.map((s) => s.expenseByCategory), 'category');
           const combinedVendor = mergeByKey(validSums.map((s) => s.expenseByVendor), 'vendor');
+          const combinedOtherDetails = validSums
+            .flatMap((s) => s.otherExpenseDetails || [])
+            .sort((a, b) => b.amount - a.amount);
           return (
             <div className="report-box">
               <h4>Tüm Dükkanlar (Toplu) — Kategori Bazlı Gider</h4>
@@ -339,6 +352,16 @@ export default function MonthlyTab({ shops }) {
                   <li key={r.category}><span>{r.category}</span><span>{formatMoney(r.total)}</span></li>
                 ))}
               </ul>
+              {combinedOtherDetails.length > 0 && (
+                <>
+                  <p className="hint">"Diğer" içindeki 100 ₺ üzeri harcamalar:</p>
+                  <ul className="report-list">
+                    {combinedOtherDetails.map((r, i) => (
+                      <li key={i}><span>{r.note || '(not yok)'} — {r.date}</span><span>{formatMoney(r.amount)}</span></li>
+                    ))}
+                  </ul>
+                </>
+              )}
               <h4>Sabit Gider — Firma Bazlı</h4>
               {combinedVendor.length === 0 && <p className="hint">Bu ay kayıt yok.</p>}
               <ul className="report-list">
