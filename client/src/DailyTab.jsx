@@ -193,6 +193,13 @@ export default function DailyTab({ shops, defaultShopName }) {
 
   const incomeDays = groupByDate(allIncomes);
   const expenseDays = groupByDate(allExpenses);
+  const cashExpenseByDate = {};
+  for (const x of allExpenses) {
+    if (!x.credit_card_id) {
+      const key = x.date.slice(0, 10);
+      cashExpenseByDate[key] = (cashExpenseByDate[key] || 0) + Number(x.amount);
+    }
+  }
   const incomeTotalPages = Math.max(1, Math.ceil(incomeDays.length / DAYS_PER_PAGE));
   const expenseTotalPages = Math.max(1, Math.ceil(expenseDays.length / DAYS_PER_PAGE));
   const incomePageClamped = Math.min(incomePage, incomeTotalPages - 1);
@@ -270,6 +277,8 @@ export default function DailyTab({ shops, defaultShopName }) {
           {incomeDays.length === 0 && <p className="hint">Henüz kayıt yok.</p>}
           {incomeDaysPage.map((d) => {
             const editable = isToday(d.date);
+            const nakitTotal = d.items.filter((i) => i.method === 'nakit').reduce((s, i) => s + Number(i.amount), 0);
+            const cashExpense = cashExpenseByDate[d.date.slice(0, 10)] || 0;
             return (
               <div className={`day-card${editable ? '' : ' backdated'}`} key={d.date}>
                 <div className="day-card-header">
@@ -277,6 +286,9 @@ export default function DailyTab({ shops, defaultShopName }) {
                   {!editable && <span className="backdated-flag">Kilitli</span>}
                   <span className="ok">Toplam: {d.total.toFixed(2)} ₺</span>
                 </div>
+                {cashExpense > 0 && (
+                  <p className="hint">Nakit Gider: {cashExpense.toFixed(2)} ₺ — Net Nakit: {(nakitTotal - cashExpense).toFixed(2)} ₺</p>
+                )}
                 <ul>
                   {d.items.map((i) => (
                     <li key={i.id}>
