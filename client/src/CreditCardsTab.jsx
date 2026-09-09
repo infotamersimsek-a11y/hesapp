@@ -184,16 +184,23 @@ function DebtActions({ card, onDone }) {
 }
 
 function DebtAdvisor() {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
-  const [advice, setAdvice] = useState(null);
   const [error, setError] = useState(null);
 
-  const analyze = async () => {
+  const send = async (e) => {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text || busy) return;
+    const newMessages = [...messages, { role: 'user', content: text }];
+    setMessages(newMessages);
+    setInput('');
     setBusy(true);
     setError(null);
     try {
-      const result = await api.debtAdvice();
-      setAdvice(result.advice);
+      const result = await api.debtChat(newMessages);
+      setMessages([...newMessages, { role: 'assistant', content: result.reply }]);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -204,10 +211,30 @@ function DebtAdvisor() {
   return (
     <section className="ai-entry">
       <h3>Yapay Zeka Borç Asistanı</h3>
-      <p className="hint">Tüm kartları, ödeme tarihlerini ve bu ayki nakit durumunu analiz edip borç kapatma önerisi sunar. Asgari ödeme tutarları tahminidir, gerçek banka tutarı değildir.</p>
-      <button type="button" onClick={analyze} disabled={busy}>{busy ? 'Analiz ediliyor...' : 'Analiz Et'}</button>
+      <p className="hint">Kartların, ödeme tarihlerin ve bu ayki nakit durumun hakkında soru sor — geçmişi hatırlayarak cevap verir. Asgari ödeme tutarları tahminidir, gerçek banka tutarı değildir.</p>
+
+      {messages.length > 0 && (
+        <div className="chat-log">
+          {messages.map((m, i) => (
+            <div key={i} className={`chat-msg chat-${m.role}`}>
+              <strong>{m.role === 'user' ? 'Sen' : 'Asistan'}:</strong> {m.content}
+            </div>
+          ))}
+        </div>
+      )}
+      {busy && <p className="hint">Yazıyor...</p>}
       {error && <p className="bad">{error}</p>}
-      {advice && <div className="ai-advice">{advice}</div>}
+
+      <form onSubmit={send} className="chat-input-row">
+        <input
+          type="text"
+          placeholder="Örn: Hangi kartı önce ödemeliyim?"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          disabled={busy}
+        />
+        <button type="submit" disabled={busy || !input.trim()}>Gönder</button>
+      </form>
     </section>
   );
 }

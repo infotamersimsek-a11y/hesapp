@@ -142,7 +142,7 @@ router.post('/card-details', upload.single('image'), async (req, res) => {
   res.json({ draft });
 });
 
-const DEBT_ADVICE_SYSTEM_PROMPT = `Sen deneyimli, ÇOK ÖZ konuşan bir finans danışmanısın. Uzun analiz yapmazsın, direkt sonuca gidersin. Türkçe yanıt ver. SADECE düz metin kullan — markdown biçimlendirmesi (yıldız/kalın işareti, tablo, # başlık, kod bloğu vb.) KULLANMA. Satır başında "•" ile madde listeleri yapabilirsin. Toplam yanıtın 150 kelimeyi geçmesin.`;
+const DEBT_CHAT_SYSTEM_PROMPT = `Sen deneyimli, öz konuşan bir finans danışmanısın. Kullanıcı sana kredi kartı/borç durumu ve dükkanların nakit durumu hakkında sorular soracak. Konuşma geçmişini dikkate alarak, önceki mesajlara tutarlı cevap ver. Türkçe yanıt ver. SADECE düz metin kullan — markdown biçimlendirmesi (yıldız/kalın işareti, tablo, # başlık, kod bloğu vb.) KULLANMA. "•" ile madde listesi yapabilirsin. Kısa ve öz konuş, gereksiz uzatma. Asgari ödeme rakamı verirsen bunun gerçek banka tutarı olmadığını, kaba bir tahmin olduğunu belirt. Ertelenmiş ("bu_ay_ertelendi": true) kartları ödeme önceliği listesine dahil etme.`;
 
 function stripMarkdown(text) {
   return text
@@ -153,7 +153,7 @@ function stripMarkdown(text) {
     .replace(/^\s*-{3,}\s*$/gm, '');
 }
 
-router.get('/debt-advice', async (req, res) => {
+async function gatherFinancialContext() {
   const cardsRes = await pool.query('SELECT * FROM credit_cards ORDER BY id');
   const cards = cardsRes.rows.map(withComputed);
 
@@ -210,37 +210,39 @@ router.get('/debt-advice', async (req, res) => {
     bu_ay_ertelendi: !!c.is_deferred_this_month,
   }));
 
-  const prompt = `Aşağıda bir işletmenin kredi kartı/borç durumu ve nakit akışı var (JSON).
+  return { cardSummary, totalDebt, shopSummaries, totalDailyRevenue, totalCash };
+}
 
-KARTLAR: ${JSON.stringify(cardSummary)}
-TOPLAM BORÇ: ${totalDebt} TL
-DÜKKAN DURUMU (bu ay): ${JSON.stringify(shopSummaries)}
-GÜNLÜK ORTALAMA TOPLAM CİRO (iki dükkan, Pazar hariç): ${totalDailyRevenue} TL
-BU AYKİ TOPLAM NAKİT DURUMU: ${totalCash} TL
+router.post('/debt-chat', async (req, res) => {
+  const { messages } = req.body;
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return res.status(400).json({ error: 'messages gerekli' });
+  }
 
-ÇOK KISA VE ÖZ yanıt ver, en fazla 5-6 madde, gereksiz detaya girme. TÜM kartları tek tek listeleme, sadece en kritik olan 2-3 kartı öne çıkar.
+  const ctx = await gatherFinancialContext();
+  const contextText = `Güncel veriler (JSON):
+KARTLAR: ${JSON.stringify(ctx.cardSummary)}
+TOPLAM BORÇ: ${ctx.totalDebt} TL
+DÜKKAN DURUMU (bu ay): ${JSON.stringify(ctx.shopSummaries)}
+GÜNLÜK ORTALAMA TOPLAM CİRO (iki dükkan, Pazar hariç): ${ctx.totalDailyRevenue} TL
+BU AYKİ TOPLAM NAKİT DURUMU: ${ctx.totalCash} TL`;
 
-1. "bu_ay_ertelendi": true olan kartlar varsa, bunları tek satırda say ("X kartı bu ay ertelendi, ödeme planlanmıyor") — bu kartları ödeme önceliği listesine DAHİL ETME, onlara ayrılacak bütçeyi diğer kartlara yönlendirmeyi öner.
-2. Ertelenmemiş kartlardan sadece 7 gün içinde ödemesi olan varsa, adını ve tutarını tek satırda belirt. Yoksa "yakın vadede ödeme yok" de.
-3. Günlük ortalama ciroya göre, işletmenin haftada/ayda ne kadar nakit üretebileceğini kabaca hesaba kat ve buna göre (ertelenenler hariç) HANGİ 1-2 borcun öncelikli kapatılması gerektiğini kısaca söyle (küçük borç + yakın vade önceliklidir). Asgari ödeme rakamı istemiyorsan sadece 1 cümlelik kaba bir tahmin yeterli, banka asgarisi olmadığını belirt.
-4. En fazla 2 net, uygulanabilir öneriyle bitir.
-
-Yanıtı düz metin olarak ver — yıldız (**), tablo (|), başlık (#) gibi markdown işaretleri KULLANMA. Sadece "•" ile madde işareti kullanabilirsin.`;
+  const chatMessages = [
+    { role: 'system', content: `${DEBT_CHAT_SYSTEM_PROMPT}\n\n${contextText}` },
+    ...messages,
+  ];
 
   const aiRes = await fetch(`${GROQ_BASE}/chat/completions`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey()}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: TEXT_MODEL,
-      messages: [
-        { role: 'system', content: DEBT_ADVICE_SYSTEM_PROMPT },
-        { role: 'user', content: prompt },
-      ],
+      messages: chatMessages,
     }),
   });
   if (!aiRes.ok) throw new Error(`Groq analiz hatası: ${aiRes.status} ${await aiRes.text()}`);
   const data = await aiRes.json();
-  res.json({ advice: stripMarkdown(data.choices[0].message.content), generated_at: new Date().toISOString() });
+  res.json({ reply: stripMarkdown(data.choices[0].message.content) });
 });
 
 export default router;

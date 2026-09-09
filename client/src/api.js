@@ -50,7 +50,7 @@ export const api = {
   receiptExpense: (formData) => request('/ai/receipt-expense', { method: 'POST', body: formData }),
   cardBalance: (formData) => request('/ai/card-balance', { method: 'POST', body: formData }),
   cardDetails: (formData) => request('/ai/card-details', { method: 'POST', body: formData }),
-  debtAdvice: () => request('/ai/debt-advice'),
+  debtChat: (messages) => request('/ai/debt-chat', { method: 'POST', body: JSON.stringify({ messages }) }),
 
   creditCardsList: () => request('/credit-cards'),
   creditCardCreate: (body) => request('/credit-cards', { method: 'POST', body: JSON.stringify(body) }),
