@@ -290,7 +290,7 @@ export default function DailyTab({ shops, defaultShopName }) {
       <BudgetPanel shopId={shopId} date={date} isBackdated={isBackdated} adminPassword={adminPassword} />
 
       <div className="grid">
-        <section>
+        <section className="section-income">
           <h3>Gelir Ekle</h3>
           <form onSubmit={addIncome}>
             <select value={incomeMethod} onChange={(e) => setIncomeMethod(e.target.value)}>
@@ -303,7 +303,7 @@ export default function DailyTab({ shops, defaultShopName }) {
           </form>
         </section>
 
-        <section>
+        <section className="section-expense">
           <h3>Gider Ekle</h3>
           <form onSubmit={addExpense}>
             <select value={expenseCategory} onChange={(e) => setExpenseCategory(e.target.value)}>

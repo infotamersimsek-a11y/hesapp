@@ -24,7 +24,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <h1>Gelir Gider Takip</h1>
+      <h1><span className="brand-mark">₺</span>Gelir Gider Takip</h1>
       <nav className="tabs">
         <button className={tab === 'daily' ? 'active' : ''} onClick={() => setTab('daily')}>Günlük</button>
         <button className={tab === 'monthly' ? 'active' : ''} onClick={() => setTab('monthly')}>Aylık</button>

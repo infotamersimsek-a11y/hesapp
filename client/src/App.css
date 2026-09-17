@@ -22,6 +22,9 @@
   --warn: #b3690a;
   --warn-bg: #fdf0dd;
 
+  --income: #0e6b5c;
+  --expense: #b5502e;
+
   --radius-sm: 6px;
   --radius-md: 12px;
   --radius-lg: 18px;
@@ -147,8 +150,27 @@ h1 {
   font-size: 1.4rem;
   font-weight: 800;
   letter-spacing: -0.015em;
-  margin: 0 0 20px;
+  margin: 0 0 22px;
   color: var(--text);
+  display: flex;
+  align-items: center;
+}
+
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #fff;
+  border-radius: 10px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 700;
+  font-size: 1.15rem;
+  margin-right: 10px;
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
 }
 
 .tabs {
@@ -289,6 +311,40 @@ section h3 {
   font-size: 1rem;
   font-weight: 700;
   letter-spacing: -0.01em;
+}
+
+.section-income,
+.section-expense {
+  border-top-width: 3px;
+  border-top-style: solid;
+}
+
+.section-income { border-top-color: var(--income); }
+.section-expense { border-top-color: var(--expense); }
+
+.section-income h3::before,
+.section-expense h3::before {
+  display: inline-block;
+  font-weight: 800;
+  margin-right: 7px;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  line-height: 20px;
+  text-align: center;
+  font-size: 0.75rem;
+  color: #fff;
+  vertical-align: -3px;
+}
+
+.section-income h3::before {
+  content: '↓';
+  background: var(--income);
+}
+
+.section-expense h3::before {
+  content: '↑';
+  background: var(--expense);
 }
 
 section form {
@@ -605,9 +661,15 @@ li {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 7px 0;
+  padding: 8px 6px;
   border-bottom: 1px solid var(--border);
   font-size: 0.9rem;
+  border-radius: var(--radius-sm);
+  transition: background 0.12s;
+}
+
+li:hover {
+  background: var(--surface-alt);
 }
 
 li button {
@@ -615,8 +677,15 @@ li button {
   border: none;
   color: var(--bad);
   cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  transition: background 0.12s;
+}
+
+li button:hover {
+  background: var(--bad-bg);
 }
 
 .edit-link {
@@ -746,18 +815,18 @@ li button {
 .file-btn {
   display: inline-block;
   padding: 9px 15px;
-  background: var(--primary);
-  color: var(--primary-contrast);
-  border: none;
+  background: var(--surface);
+  color: var(--primary);
+  border: 1.5px solid var(--primary);
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 700;
-  transition: background 0.15s, transform 0.1s;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
 }
 
 .ai-entry > button:hover,
-.file-btn:hover { background: var(--primary-dark); }
+.file-btn:hover { background: var(--primary-light); }
 .ai-entry > button:active,
 .file-btn:active { transform: scale(0.98); }
 
@@ -782,6 +851,8 @@ li button {
 
 .ai-entry > button.rec-active {
   background: var(--bad);
+  color: #fff;
+  border-color: var(--bad);
 }
 
 .chat-log {

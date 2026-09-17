@@ -273,7 +273,7 @@ export default function MonthlyTab({ shops }) {
       })()}
       <p className="hint">Nakit ve POS gelirleri Günlük sekmesinden girilir, buradaki toplamlar otomatik hesaplanır.</p>
 
-      <section>
+      <section className="section-expense">
         <h3>Sabit Gider Ekle (Hacıoğulları)</h3>
         <form onSubmit={addFixedExpense}>
           <select value={vendorType} onChange={(e) => setVendorType(e.target.value)}>
