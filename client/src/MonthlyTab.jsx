@@ -70,17 +70,28 @@ function formatDayRange(days) {
   return `${firstDayNum}-${lastDayNum} ${label} arası`;
 }
 
-function dailyAverage(dailyIncome, year, month) {
+function analyzeMonthDays(dailyIncome, year, month) {
   const { days, isCurrentMonth, todayStr, byDate } = buildMonthDays(dailyIncome, year, month);
-  const hasTodayData = byDate.has(todayStr);
-  const businessDays = days.filter((d) => !d.isSunday && !(isCurrentMonth && d.dateStr === todayStr && !hasTodayData));
-  return businessDays.length ? businessDays.reduce((s, d) => s + d.total, 0) / businessDays.length : 0;
+  const missingDates = [];
+  const businessDays = days.filter((d) => {
+    if (d.isSunday) return false;
+    if (byDate.has(d.dateStr)) return true;
+    if (isCurrentMonth && d.dateStr === todayStr) return false;
+    missingDates.push(d.dateStr);
+    return false;
+  });
+  const avg = businessDays.length ? businessDays.reduce((s, d) => s + d.total, 0) / businessDays.length : 0;
+  return { days, avg, missingDates };
+}
+
+function dailyAverage(dailyIncome, year, month) {
+  return analyzeMonthDays(dailyIncome, year, month).avg;
 }
 
 function DailyRevenueChart({ title, dailyIncome, year, month }) {
-  const { days } = buildMonthDays(dailyIncome, year, month);
+  const { days, avg, missingDates } = analyzeMonthDays(dailyIncome, year, month);
+  const missingSet = new Set(missingDates);
   const maxTotal = Math.max(1, ...days.map((d) => d.total));
-  const avg = dailyAverage(dailyIncome, year, month);
   const rangeLabel = formatDayRange(days);
 
   return (
@@ -96,11 +107,11 @@ function DailyRevenueChart({ title, dailyIncome, year, month }) {
               {days.map((d) => (
                 <div
                   key={d.dateStr}
-                  className={`bar${d.isSunday ? ' bar-sunday' : ''}`}
+                  className={`bar${d.isSunday ? ' bar-sunday' : ''}${missingSet.has(d.dateStr) ? ' bar-missing' : ''}`}
                   style={{ height: `${Math.max(2, (d.total / maxTotal) * 100)}%` }}
-                  title={`${dateFormatter.format(new Date(d.dateStr))}: ${formatMoney(d.total)}`}
+                  title={`${dateFormatter.format(new Date(d.dateStr))}: ${missingSet.has(d.dateStr) ? 'veri girilmedi' : formatMoney(d.total)}`}
                 >
-                  <span className="bar-value">{formatMoney(d.total).replace(' ₺', '')}</span>
+                  <span className="bar-value">{missingSet.has(d.dateStr) ? '—' : formatMoney(d.total).replace(' ₺', '')}</span>
                 </div>
               ))}
             </div>
@@ -108,7 +119,12 @@ function DailyRevenueChart({ title, dailyIncome, year, month }) {
               {days.map((d) => <span key={d.dateStr} className="bar-label">{DAY_ABBR[d.dow]}</span>)}
             </div>
           </div>
-          <p className="hint">Mavi: hesaba dahil · Gri: Pazar (ortalamaya dahil değil) · Bugün için henüz veri girilmediyse ortalamaya dahil edilmiyor</p>
+          {missingDates.length > 0 && (
+            <p className="missing-days-warning">
+              ⚠ {missingDates.length} gün veri girilmemiş: {missingDates.map((d) => dateFormatter.format(new Date(d))).join(', ')} — bu günler ortalamaya dahil edilmedi, geriye dönük girmeyi unutma.
+            </p>
+          )}
+          <p className="hint">Mavi: hesaba dahil · Gri: Pazar (ortalamaya dahil değil) · Kırmızı: veri girilmemiş (ortalamaya dahil değil)</p>
           <p>Günlük Ortalama Ciro: <strong>{formatMoney(avg)}</strong></p>
         </>
       )}

@@ -298,6 +298,20 @@ section form button {
   background: #cfd8dc;
 }
 
+.bar-missing {
+  background: repeating-linear-gradient(45deg, #ffcdd2, #ffcdd2 4px, #ef9a9a 4px, #ef9a9a 8px);
+}
+
+.missing-days-warning {
+  background: #fff3e0;
+  color: #e65100;
+  border: 1px solid #ffcc80;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  margin: 8px 0;
+}
+
 .bar-labels {
   display: flex;
   gap: 4px;
