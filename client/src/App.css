@@ -666,6 +666,57 @@ li button {
   margin-top: 10px;
 }
 
+.ai-quick-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.ai-quick-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #f7f9fc;
+  border: 1px solid #e3e8f0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  min-width: 140px;
+}
+
+.ai-quick-stat-label {
+  font-size: 0.7rem;
+  color: #777;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.ai-quick-stat-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.chat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.chat-chip {
+  background: #eef2ff;
+  color: #3f51b5;
+  border: 1px solid #c5cef0;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.chat-chip:hover {
+  background: #dfe5ff;
+}
+
 .chat-input-row input {
   flex: 1;
   padding: 8px;

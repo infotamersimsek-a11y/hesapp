@@ -142,7 +142,8 @@ router.post('/card-details', upload.single('image'), async (req, res) => {
   res.json({ draft });
 });
 
-const DEBT_CHAT_SYSTEM_PROMPT = `Sen deneyimli, öz konuşan bir finans danışmanısın. Kullanıcı sana kredi kartı/borç durumu ve dükkanların nakit durumu hakkında sorular soracak. Konuşma geçmişini dikkate alarak, önceki mesajlara tutarlı cevap ver. Türkçe yanıt ver. SADECE düz metin kullan — markdown biçimlendirmesi (yıldız/kalın işareti, tablo, # başlık, kod bloğu vb.) KULLANMA. "•" ile madde listesi yapabilirsin. Kısa ve öz konuş, gereksiz uzatma. Asgari ödeme rakamı verirsen bunun gerçek banka tutarı olmadığını, kaba bir tahmin olduğunu belirt. Ertelenmiş ("bu_ay_ertelendi": true) kartları ödeme önceliği listesine dahil etme.`;
+const DEBT_CHAT_SYSTEM_PROMPT = `Sen deneyimli, öz konuşan bir finans danışmanısın. Kullanıcı sana kredi kartı/borç durumu ve dükkanların nakit durumu hakkında sorular soracak. Konuşma geçmişini dikkate alarak, önceki mesajlara tutarlı cevap ver. Türkçe yanıt ver. SADECE düz metin kullan — markdown biçimlendirmesi (yıldız/kalın işareti, tablo, # başlık, kod bloğu vb.) KULLANMA. "•" ile madde listesi yapabilirsin. Kısa ve öz konuş, gereksiz uzatma. Asgari ödeme rakamı verirsen bunun gerçek banka tutarı olmadığını, kaba bir tahmin olduğunu belirt. Ertelenmiş ("bu_ay_ertelendi": true) kartları ödeme önceliği listesine dahil etme.
+Kullanıcı "ne zaman biter", "kaç ayda kapanır", "X TL fazladan ödersem" gibi senaryo/varsayım soruları sorarsa, verilen GÜNLÜK ORTALAMA TOPLAM CİRO ve TOPLAM BORÇ rakamlarını kullanarak somut, sayısal bir tahmin yap (örn "aylık X TL ayırırsan yaklaşık Y ayda kapanır") — bunun kaba bir tahmin/senaryo olduğunu, gerçek taksit/faiz hesabı olmadığını belirt. EN_KRITIK_KART alanı varsa, "hangi kartı önce ödemeliyim" tipi sorularda önce onu öner ve nedenini (son ödeme gününe kalan gün, borç tutarı) kısaca açıkla.`;
 
 function stripMarkdown(text) {
   return text
@@ -210,7 +211,13 @@ async function gatherFinancialContext() {
     bu_ay_ertelendi: !!c.is_deferred_this_month,
   }));
 
-  return { cardSummary, totalDebt, shopSummaries, totalDailyRevenue, totalCash };
+  const activeCards = cardSummary.filter((c) => !c.bu_ay_ertelendi);
+  const critical = activeCards
+    .filter((c) => c.son_odemeye_kalan_gun !== null && c.borc > 0)
+    .sort((a, b) => a.son_odemeye_kalan_gun - b.son_odemeye_kalan_gun)[0] || null;
+  const deferredCards = cardSummary.filter((c) => c.bu_ay_ertelendi).map((c) => c.ad);
+
+  return { cardSummary, totalDebt, shopSummaries, totalDailyRevenue, totalCash, critical, deferredCards };
 }
 
 router.post('/debt-chat', async (req, res) => {
@@ -223,6 +230,8 @@ router.post('/debt-chat', async (req, res) => {
   const contextText = `Güncel veriler (JSON):
 KARTLAR: ${JSON.stringify(ctx.cardSummary)}
 TOPLAM BORÇ: ${ctx.totalDebt} TL
+EN_KRITIK_KART: ${JSON.stringify(ctx.critical)}
+ERTELENMİŞ_KARTLAR: ${JSON.stringify(ctx.deferredCards)}
 DÜKKAN DURUMU (bu ay): ${JSON.stringify(ctx.shopSummaries)}
 GÜNLÜK ORTALAMA TOPLAM CİRO (iki dükkan, Pazar hariç): ${ctx.totalDailyRevenue} TL
 BU AYKİ TOPLAM NAKİT DURUMU: ${ctx.totalCash} TL`;

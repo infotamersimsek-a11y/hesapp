@@ -183,15 +183,32 @@ function DebtActions({ card, onDone }) {
   );
 }
 
-function DebtAdvisor() {
+function buildSuggestedQuestions(cards) {
+  const active = cards.filter((c) => !c.is_deferred_this_month && Number(c.debt_amount) > 0);
+  const critical = active
+    .filter((c) => c.days_until_due !== null)
+    .sort((a, b) => a.days_until_due - b.days_until_due)[0];
+  const qs = ['Hangi kartı önce ödemeliyim?', 'Bu ay nakit durumum borcuma yeter mi?'];
+  if (critical) qs.push(`${critical.name} ${critical.owner} için ne kadar ayırmalıyım?`);
+  qs.push('Aylık 10.000 TL fazladan ödersem borç ne zaman biter?');
+  return qs;
+}
+
+function DebtAdvisor({ cards }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
-  const send = async (e) => {
-    e.preventDefault();
-    const text = input.trim();
+  const totalDebt = cards.reduce((s, c) => s + Number(c.debt_amount), 0);
+  const active = cards.filter((c) => !c.is_deferred_this_month && Number(c.debt_amount) > 0);
+  const nearestDue = active
+    .filter((c) => c.days_until_due !== null)
+    .sort((a, b) => a.days_until_due - b.days_until_due)[0];
+  const deferredCount = cards.filter((c) => c.is_deferred_this_month).length;
+  const suggestions = buildSuggestedQuestions(cards);
+
+  const sendText = async (text) => {
     if (!text || busy) return;
     const newMessages = [...messages, { role: 'user', content: text }];
     setMessages(newMessages);
@@ -208,10 +225,36 @@ function DebtAdvisor() {
     }
   };
 
+  const send = (e) => {
+    e.preventDefault();
+    sendText(input.trim());
+  };
+
   return (
     <section className="ai-entry">
       <h3>Yapay Zeka Borç Asistanı</h3>
       <p className="hint">Kartların, ödeme tarihlerin ve bu ayki nakit durumun hakkında soru sor — geçmişi hatırlayarak cevap verir. Asgari ödeme tutarları tahminidir, gerçek banka tutarı değildir.</p>
+
+      {cards.length > 0 && (
+        <div className="ai-quick-stats">
+          <div className="ai-quick-stat">
+            <span className="ai-quick-stat-label">Toplam Borç</span>
+            <span className="ai-quick-stat-value bad">{formatMoney(totalDebt)}</span>
+          </div>
+          {nearestDue && (
+            <div className="ai-quick-stat">
+              <span className="ai-quick-stat-label">En Yakın Ödeme</span>
+              <span className="ai-quick-stat-value">{nearestDue.name} {nearestDue.owner} — {nearestDue.days_until_due} gün</span>
+            </div>
+          )}
+          {deferredCount > 0 && (
+            <div className="ai-quick-stat">
+              <span className="ai-quick-stat-label">Ertelenen Kart</span>
+              <span className="ai-quick-stat-value">{deferredCount}</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {messages.length > 0 && (
         <div className="chat-log">
@@ -224,6 +267,14 @@ function DebtAdvisor() {
       )}
       {busy && <p className="hint">Yazıyor...</p>}
       {error && <p className="bad">{error}</p>}
+
+      {messages.length === 0 && !busy && (
+        <div className="chat-chips">
+          {suggestions.map((q) => (
+            <button key={q} type="button" className="chat-chip" onClick={() => sendText(q)}>{q}</button>
+          ))}
+        </div>
+      )}
 
       <form onSubmit={send} className="chat-input-row">
         <input
@@ -417,7 +468,7 @@ export default function CreditCardsTab() {
         );
       })}
 
-      <DebtAdvisor />
+      <DebtAdvisor cards={cards} />
     </div>
   );
 }
