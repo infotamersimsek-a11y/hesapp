@@ -96,55 +96,101 @@ function CardDetailsPhoto({ onRead }) {
   );
 }
 
+function DebtItem({ c, g, onDone, onDelete, onDefer }) {
+  const [showDetail, setShowDetail] = useState(false);
+  const limitPct = c.credit_limit ? Math.min(100, Math.max(0, Math.round((Number(c.debt_amount) / Number(c.credit_limit)) * 100))) : null;
+  const hasHistory = c.history.some((h) => h.delta != null) || c.recent_charges.length > 0;
+
+  return (
+    <div className="debt-item">
+      <div className="debt-item-top">
+        <span className="debt-item-type">{c.type}{c.last4 ? ` •••• ${c.last4}` : ''}</span>
+        <div className="debt-item-flags">
+          {c.due_soon && <span className="backdated-flag">{c.days_until_due} gün</span>}
+          {c.is_deferred_this_month && <span className="deferred-flag">Ertelendi</span>}
+          <button className="delete-link" onClick={() => onDelete(c)}>Sil</button>
+        </div>
+      </div>
+
+      <div className="debt-hero">
+        <span className="debt-hero-label">Borç</span>
+        <span className="debt-hero-value">{formatMoney(c.debt_amount)}</span>
+      </div>
+
+      {c.credit_limit != null && (
+        <div className="limit-bar-wrap">
+          <div className="limit-bar-track">
+            <div className="limit-bar-fill" style={{ width: `${limitPct}%` }} />
+          </div>
+          <span className="limit-bar-caption">Kullanılabilir {formatMoney(c.available_limit)} / {formatMoney(c.credit_limit)}</span>
+        </div>
+      )}
+
+      {(c.statement_day || c.due_day) && (
+        <div className="date-chip-row">
+          {c.statement_day && <span className="date-chip">Kesim {c.statement_day} · {formatDate(c.next_statement_date)}</span>}
+          {c.due_day && <span className="date-chip">Ödeme {c.due_day} · {formatDate(c.next_due_date)}</span>}
+        </div>
+      )}
+
+      <label className="hint defer-toggle">
+        <input type="checkbox" checked={!!c.is_deferred_this_month} onChange={(e) => onDefer(c.id, e.target.checked)} />
+        Bu ay ödemeyi ertele
+      </label>
+
+      {c.note && <p className="debt-note">{c.note}</p>}
+
+      {hasHistory && (
+        <>
+          <button type="button" className="detail-toggle" onClick={() => setShowDetail((v) => !v)}>
+            {showDetail ? 'Geçmişi gizle ▲' : 'Geçmişi göster ▼'}
+          </button>
+          {showDetail && (
+            <div className="debt-history">
+              {c.history.filter((h) => h.delta != null).slice(0, 2).map((h, i) => (
+                <span key={i} className="hint">
+                  {h.delta > 0 ? `Ödeme: ${formatMoney(h.delta)}` : `Borç artışı: ${formatMoney(-h.delta)}`} — {formatDate(h.recorded_at)}
+                </span>
+              ))}
+              {c.recent_charges.length > 0 && (
+                <div className="recent-charges">
+                  <span className="hint">Son 3 gün bu karttan yapılan harcamalar:</span>
+                  {c.recent_charges.map((r, i) => (
+                    <span key={i} className="hint">
+                      {formatMoney(r.amount)} — {r.label}{r.note ? ` (${r.note})` : ''} — {formatDate(r.date)}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      <DebtActions card={c} onDone={onDone} />
+    </div>
+  );
+}
+
 function CardGroup({ g, onDone, onDelete, onDefer }) {
   const bankColor = getEntityColor(g.name);
   const textColor = getContrastText(bankColor);
+  const isDark = textColor === '#ffffff';
+  const overlayWeak = isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.07)';
+  const overlayStrong = isDark ? 'rgba(255,255,255,0.30)' : 'rgba(0,0,0,0.16)';
   const anyDueSoon = g.items.some((c) => c.due_soon);
   return (
     <div
       className={`credit-card${anyDueSoon ? ' due-soon' : ''}`}
-      style={{ background: bankColor, color: textColor }}
+      style={{ background: bankColor, color: textColor, '--overlay-weak': overlayWeak, '--overlay-strong': overlayStrong }}
     >
       <div className="credit-card-header">
-        <strong style={{ color: textColor }}>{g.name} — {g.owner}</strong>
+        <strong className="bank-name">{g.name}</strong>
+        <span className="owner-chip">{g.owner}</span>
       </div>
 
       {g.items.map((c) => (
-        <div className="debt-item" key={c.id}>
-          <div className="credit-card-header">
-            <strong style={{ color: textColor }}>{c.type}{c.last4 ? ` •••• ${c.last4}` : ''}</strong>
-            {c.due_soon && <span className="backdated-flag">Son ödemeye {c.days_until_due} gün</span>}
-            {c.is_deferred_this_month && <span className="deferred-flag">Bu ay ertelendi</span>}
-            <button className="delete-link" onClick={() => onDelete(c)}>Sil</button>
-          </div>
-          <div className="credit-card-body" style={{ color: textColor }}>
-            <span className="label-debt">Borç: {formatMoney(c.debt_amount)}</span>
-            <label className="hint defer-toggle" style={{ color: textColor }}>
-              <input type="checkbox" checked={!!c.is_deferred_this_month} onChange={(e) => onDefer(c.id, e.target.checked)} />
-              Bu ay ödemeyi ertele
-            </label>
-            {c.credit_limit != null && <span className="label-limit">Kullanılabilir Limit: {formatMoney(c.available_limit)} / {formatMoney(c.credit_limit)}</span>}
-            {c.statement_day && <span className="label-statement">Hesap Kesim: {c.statement_day} (sıradaki: {formatDate(c.next_statement_date)})</span>}
-            {c.due_day && <span className="label-due">Son Ödeme: {c.due_day} (sıradaki: {formatDate(c.next_due_date)})</span>}
-            {c.note && <span>Not: {c.note}</span>}
-            {c.history.filter((h) => h.delta != null).slice(0, 2).map((h, i) => (
-              <span key={i} className="hint" style={{ color: textColor, opacity: 0.85 }}>
-                {h.delta > 0 ? `Ödeme: ${formatMoney(h.delta)}` : `Borç artışı: ${formatMoney(-h.delta)}`} — {formatDate(h.recorded_at)}
-              </span>
-            ))}
-            {c.recent_charges.length > 0 && (
-              <div className="recent-charges">
-                <span className="hint" style={{ color: textColor }}>Son 3 gün bu karttan yapılan harcamalar:</span>
-                {c.recent_charges.map((r, i) => (
-                  <span key={i} className="hint" style={{ color: textColor, opacity: 0.85 }}>
-                    {g.name} kartından {formatMoney(r.amount)} ödeme yapıldı — {r.label}{r.note ? ` (${r.note})` : ''} — {formatDate(r.date)}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-          <DebtActions card={c} onDone={onDone} />
-        </div>
+        <DebtItem key={c.id} c={c} g={g} onDone={onDone} onDelete={onDelete} onDefer={onDefer} />
       ))}
     </div>
   );
