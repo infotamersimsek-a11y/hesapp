@@ -88,6 +88,58 @@ function Pager({ page, totalPages, onChange, rangeLabel }) {
   );
 }
 
+function BudgetPanel({ shopId, date, isBackdated, adminPassword }) {
+  const [budget, setBudget] = useState(null);
+  const [topupAmount, setTopupAmount] = useState('');
+  const [topupNote, setTopupNote] = useState('');
+  const [showTopup, setShowTopup] = useState(false);
+  const [error, setError] = useState(null);
+
+  const reload = async () => {
+    if (!shopId) return;
+    const b = await api.budgetGet(shopId);
+    setBudget(b);
+  };
+
+  useEffect(() => { reload(); }, [shopId]);
+  useLiveRefresh(reload);
+
+  const topup = async (e) => {
+    e.preventDefault();
+    if (!topupAmount) return;
+    setError(null);
+    try {
+      await api.budgetTopup({ shop_id: shopId, amount: topupAmount, note: topupNote, date, admin_password: isBackdated ? adminPassword : undefined });
+      setTopupAmount('');
+      setTopupNote('');
+      setShowTopup(false);
+      reload();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  if (!budget) return null;
+
+  return (
+    <section className="budget-panel">
+      <div className="budget-header">
+        <h3>Var Olan Bütçe</h3>
+        <span className={budget.balance >= 0 ? 'ok' : 'bad'}>{budget.balance.toFixed(2)} ₺</span>
+        <button type="button" className="file-btn" onClick={() => setShowTopup((v) => !v)}>{showTopup ? 'Vazgeç' : '+ Bütçeye Ekle'}</button>
+      </div>
+      {showTopup && (
+        <form onSubmit={topup} className="budget-topup-form">
+          <input type="number" step="0.01" placeholder="Tutar" value={topupAmount} onChange={(e) => setTopupAmount(e.target.value)} required />
+          <input type="text" placeholder="Not (opsiyonel)" value={topupNote} onChange={(e) => setTopupNote(e.target.value)} />
+          <button type="submit">Ekle</button>
+        </form>
+      )}
+      {error && <p className="bad">{error}</p>}
+    </section>
+  );
+}
+
 function groupByDate(entries) {
   const days = {};
   for (const e of entries) {
@@ -114,6 +166,7 @@ export default function DailyTab({ shops, defaultShopName }) {
   const [expenseAmount, setExpenseAmount] = useState('');
   const [expenseNote, setExpenseNote] = useState('');
   const [expenseCardId, setExpenseCardId] = useState('');
+  const [cashSource, setCashSource] = useState('');
   const [allIncomes, setAllIncomes] = useState([]);
   const [allExpenses, setAllExpenses] = useState([]);
   const [cards, setCards] = useState([]);
@@ -160,6 +213,10 @@ export default function DailyTab({ shops, defaultShopName }) {
       setError('Kredi kartı ödemesi için kart seçmelisin');
       return;
     }
+    if (!expenseCardId && !cashSource) {
+      setError('Nakit gider için kaynak seç: Günlük Gelirden mi, Var Olan Bütçeden mi?');
+      return;
+    }
     setError(null);
     let effectiveShopId = shopId;
     if (expenseCategory === CARD_PAYMENT_CATEGORY && expenseCardId) {
@@ -176,11 +233,13 @@ export default function DailyTab({ shops, defaultShopName }) {
         amount: expenseAmount,
         note: expenseNote,
         credit_card_id: expenseCardId || null,
+        cash_source: expenseCardId ? null : cashSource,
         admin_password: isBackdated ? adminPassword : undefined,
       });
       setExpenseAmount('');
       setExpenseNote('');
       setExpenseCardId('');
+      setCashSource('');
       if (effectiveShopId !== shopId) {
         const targetShop = shops.find((s) => s.id === effectiveShopId);
         alert(`Ödeme ${targetShop?.name ?? 'ilgili dükkana'} kaydedildi (kart sahibine göre otomatik)`);
@@ -195,7 +254,7 @@ export default function DailyTab({ shops, defaultShopName }) {
   const expenseDays = groupByDate(allExpenses);
   const cashExpenseByDate = {};
   for (const x of allExpenses) {
-    if (!x.credit_card_id) {
+    if (!x.credit_card_id && x.cash_source !== 'butce') {
       const key = x.date.slice(0, 10);
       cashExpenseByDate[key] = (cashExpenseByDate[key] || 0) + Number(x.amount);
     }
@@ -228,6 +287,8 @@ export default function DailyTab({ shops, defaultShopName }) {
       )}
       {error && <p className="bad">{error}</p>}
 
+      <BudgetPanel shopId={shopId} date={date} isBackdated={isBackdated} adminPassword={adminPassword} />
+
       <div className="grid">
         <section>
           <h3>Gelir Ekle</h3>
@@ -250,7 +311,7 @@ export default function DailyTab({ shops, defaultShopName }) {
             </select>
             <input type="number" step="0.01" placeholder="Tutar" value={expenseAmount} onChange={(e) => setExpenseAmount(e.target.value)} required />
             <input type="text" placeholder="Not (opsiyonel)" value={expenseNote} onChange={(e) => setExpenseNote(e.target.value)} />
-            <select value={expenseCardId} onChange={(e) => setExpenseCardId(e.target.value)} required={expenseCategory === CARD_PAYMENT_CATEGORY}>
+            <select value={expenseCardId} onChange={(e) => { setExpenseCardId(e.target.value); if (e.target.value) setCashSource(''); }} required={expenseCategory === CARD_PAYMENT_CATEGORY}>
               <option value="">{expenseCategory === CARD_PAYMENT_CATEGORY ? 'Kart seç' : 'Ödeme kartı yok (nakit/pos)'}</option>
               {cards.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -258,6 +319,13 @@ export default function DailyTab({ shops, defaultShopName }) {
                 </option>
               ))}
             </select>
+            {!expenseCardId && (
+              <select value={cashSource} onChange={(e) => setCashSource(e.target.value)} required>
+                <option value="">Nakit kaynağı seç</option>
+                <option value="gunluk_gelir">Günlük Gelirden</option>
+                <option value="butce">Var Olan Bütçeden</option>
+              </select>
+            )}
             <button type="submit">Ekle</button>
           </form>
           <ReceiptExpense shopId={shopId} date={date} adminPassword={isBackdated ? adminPassword : undefined} onSaved={reload} />
@@ -327,7 +395,7 @@ export default function DailyTab({ shops, defaultShopName }) {
                     const card = cards.find((c) => c.id === x.credit_card_id);
                     return (
                       <li key={x.id}>
-                        {x.category}: {Number(x.amount).toFixed(2)} ₺ {x.note ? `— ${x.note}` : ''} {card ? <span className="tag-pos">{card.name}</span> : ''}
+                        {x.category}: {Number(x.amount).toFixed(2)} ₺ {x.note ? `— ${x.note}` : ''} {card ? <span className="tag-pos">{card.name}</span> : ''} {!card && x.cash_source === 'butce' ? <span className="tag-butce">Bütçe</span> : ''}
                         <AmountEditor
                           item={x}
                           onSave={(amount, admin_password) => api.dailyExpenseUpdate(x.id, {

@@ -12,6 +12,7 @@ import monthlyExpenseRouter from './routes/monthlyExpense.js';
 import summaryRouter from './routes/summary.js';
 import aiRouter from './routes/ai.js';
 import creditCardsRouter from './routes/creditCards.js';
+import budgetRouter from './routes/budget.js';
 
 dotenv.config();
 
@@ -29,6 +30,7 @@ app.use('/api/monthly-expense', monthlyExpenseRouter);
 app.use('/api/summary', summaryRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/credit-cards', creditCardsRouter);
+app.use('/api/budget', budgetRouter);
 
 app.use((err, req, res, next) => {
   console.error(err);

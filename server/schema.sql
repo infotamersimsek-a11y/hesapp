@@ -43,7 +43,17 @@ CREATE TABLE IF NOT EXISTS daily_expense (
   category TEXT NOT NULL,
   amount NUMERIC(12,2) NOT NULL,
   note TEXT,
-  credit_card_id INTEGER REFERENCES credit_cards(id) ON DELETE SET NULL
+  credit_card_id INTEGER REFERENCES credit_cards(id) ON DELETE SET NULL,
+  cash_source TEXT CHECK (cash_source IN ('gunluk_gelir', 'butce'))
+);
+
+CREATE TABLE IF NOT EXISTS budget_transaction (
+  id SERIAL PRIMARY KEY,
+  shop_id INTEGER NOT NULL REFERENCES shops(id),
+  amount NUMERIC(12,2) NOT NULL,
+  note TEXT,
+  date DATE NOT NULL DEFAULT CURRENT_DATE,
+  daily_expense_id INTEGER REFERENCES daily_expense(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS monthly_expense (
@@ -62,3 +72,4 @@ CREATE INDEX IF NOT EXISTS idx_daily_income_date ON daily_income(shop_id, date);
 CREATE INDEX IF NOT EXISTS idx_daily_expense_date ON daily_expense(shop_id, date);
 CREATE INDEX IF NOT EXISTS idx_monthly_expense_ym ON monthly_expense(shop_id, year, month);
 CREATE INDEX IF NOT EXISTS idx_debt_log_card ON credit_card_debt_log(credit_card_id, recorded_at);
+CREATE INDEX IF NOT EXISTS idx_budget_transaction_shop ON budget_transaction(shop_id);
