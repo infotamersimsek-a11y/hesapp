@@ -380,6 +380,43 @@ function VendorCard({ v, onDone }) {
   );
 }
 
+const fixedExpenseMonthFormatter = new Intl.DateTimeFormat('tr-TR', { month: 'long', year: 'numeric' });
+
+function FixedExpenseSummary({ expenses }) {
+  if (expenses.length === 0) return null;
+  const byCategory = new Map();
+  for (const x of expenses) {
+    byCategory.set(x.category, (byCategory.get(x.category) || 0) + Number(x.amount));
+  }
+  const rows = Array.from(byCategory.entries()).map(([category, total]) => ({ category, total })).sort((a, b) => b.total - a.total);
+  const total = rows.reduce((s, r) => s + r.total, 0);
+  const monthLabel = fixedExpenseMonthFormatter.format(new Date());
+
+  return (
+    <div>
+      <h3>Sabit Giderler ({monthLabel})</h3>
+      <div className="card-list">
+        <div className="credit-card" style={{ background: '#37474F', color: '#ffffff', '--overlay-weak': 'rgba(255,255,255,0.14)', '--overlay-strong': 'rgba(255,255,255,0.3)' }}>
+          <div className="credit-card-header">
+            <strong className="bank-name">Sabit Giderler</strong>
+          </div>
+          <div className="debt-item">
+            <div className="debt-hero">
+              <span className="debt-hero-label">Bu Ay Toplam</span>
+              <span className="debt-hero-value">{formatMoney(total)}</span>
+            </div>
+            <div className="date-chip-row">
+              {rows.map((r) => (
+                <span key={r.category} className="date-chip">{r.category}: {formatMoney(r.total)}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function VendorCards({ vendors, onDone }) {
   if (vendors.length === 0) return null;
   return (
@@ -396,6 +433,7 @@ function VendorCards({ vendors, onDone }) {
 export default function CreditCardsTab() {
   const [cards, setCards] = useState([]);
   const [vendors, setVendors] = useState([]);
+  const [fixedExpenses, setFixedExpenses] = useState([]);
   const [bankChoice, setBankChoice] = useState(TURKISH_BANKS[0]);
   const [bankCustom, setBankCustom] = useState('');
   const [owner, setOwner] = useState(OWNERS[0]);
@@ -412,6 +450,9 @@ export default function CreditCardsTab() {
   const reload = async () => {
     setCards(await api.creditCardsList());
     setVendors(await api.vendorDebtList());
+    const now = new Date();
+    const allYear = await api.monthlyExpenseList({ year: now.getFullYear() });
+    setFixedExpenses(allYear.filter((x) => x.month === now.getMonth() + 1));
   };
 
   useEffect(() => { reload(); }, []);
@@ -576,6 +617,8 @@ export default function CreditCardsTab() {
           </div>
         );
       })}
+
+      <FixedExpenseSummary expenses={fixedExpenses} />
 
       <VendorCards vendors={vendors} onDone={reload} />
 
