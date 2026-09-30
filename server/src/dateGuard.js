@@ -30,7 +30,7 @@ function checkAdminPassword(password) {
   return crypto.timingSafeEqual(expected, given);
 }
 
-export function assertDateAllowed(date, adminPassword) {
+export function assertDateAllowed(date, adminPassword, trustedAdmin) {
   const today = todayStr();
   if (date > today) {
     const err = new Error('Gelecek tarihe kayıt girilemez');
@@ -40,6 +40,8 @@ export function assertDateAllowed(date, adminPassword) {
   for (let i = 0; i < FREE_EDIT_DAYS; i++) {
     if (date === daysAgoStr(i)) return;
   }
+
+  if (trustedAdmin) return;
 
   if (!checkAdminPassword(adminPassword)) {
     const err = new Error(`Bu tarihe (son ${FREE_EDIT_DAYS} günden eski) kayıt eklemek için yönetici şifresi gerekli`);

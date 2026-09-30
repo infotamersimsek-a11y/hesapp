@@ -27,9 +27,13 @@ export function requireAuth(req, res, next) {
   if (!token) return res.status(401).json({ error: 'Giriş gerekli' });
 
   try {
-    jwt.verify(token, process.env.JWT_SECRET);
+    req.auth = jwt.verify(token, process.env.JWT_SECRET);
     next();
   } catch {
     res.status(401).json({ error: 'Oturum geçersiz, tekrar giriş yap' });
   }
+}
+
+export function isTrustedAdmin(req) {
+  return req.auth?.defaultShop === 'Hacıoğulları';
 }

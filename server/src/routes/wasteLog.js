@@ -25,40 +25,29 @@ router.get('/', async (req, res) => {
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const { rows } = await pool.query(
-    `SELECT * FROM daily_income ${where} ORDER BY date DESC, id DESC`,
+    `SELECT * FROM waste_log ${where} ORDER BY date DESC, id DESC`,
     params
   );
   res.json(rows);
 });
 
 router.post('/', async (req, res) => {
-  const { shop_id, date, method, amount, note, admin_password } = req.body;
+  const { shop_id, date, category, amount_kg, note, admin_password } = req.body;
   assertDateAllowed(date, admin_password, isTrustedAdmin(req));
   const { rows } = await pool.query(
-    `INSERT INTO daily_income (shop_id, date, method, amount, note) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-    [shop_id, date, method || 'nakit', amount, note ?? null]
+    `INSERT INTO waste_log (shop_id, date, category, amount_kg, note) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [shop_id, date, category, amount_kg, note ?? null]
   );
   res.status(201).json(rows[0]);
 });
 
-router.put('/:id', async (req, res) => {
-  const { shop_id, date, method, amount, note, admin_password } = req.body;
-  assertDateAllowed(date, admin_password, isTrustedAdmin(req));
-  const { rows } = await pool.query(
-    `UPDATE daily_income SET shop_id=$1, date=$2, method=$3, amount=$4, note=$5 WHERE id=$6 RETURNING *`,
-    [shop_id, date, method || 'nakit', amount, note ?? null, req.params.id]
-  );
-  if (!rows.length) return res.status(404).json({ error: 'not found' });
-  res.json(rows[0]);
-});
-
 router.delete('/:id', async (req, res) => {
   const { rows } = await pool.query(
-    'DELETE FROM daily_income WHERE id=$1 AND date=$2 RETURNING id',
+    'DELETE FROM waste_log WHERE id=$1 AND date=$2 RETURNING id',
     [req.params.id, todayStr()]
   );
   if (!rows.length) {
-    return res.status(403).json({ error: 'Geçmiş tarihli kayıt silinemez, sadece yeni ekleme yapılabilir' });
+    return res.status(403).json({ error: 'Geçmiş tarihli kayıt silinemez, sadece bugünün kaydı silinebilir' });
   }
   res.status(204).end();
 });

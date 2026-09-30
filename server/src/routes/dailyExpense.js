@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { todayStr, assertDateAllowed } from '../dateGuard.js';
+import { isTrustedAdmin } from '../auth.js';
 import { adjustCardDebt, debtDeltaFor } from '../cardDebt.js';
 
 const router = Router();
@@ -33,7 +34,7 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   const { shop_id, date, category, amount, note, credit_card_id, cash_source, admin_password } = req.body;
-  assertDateAllowed(date, admin_password);
+  assertDateAllowed(date, admin_password, isTrustedAdmin(req));
   const { rows } = await pool.query(
     `INSERT INTO daily_expense (shop_id, date, category, amount, note, credit_card_id, cash_source) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
     [shop_id, date, category, amount, note ?? null, credit_card_id || null, credit_card_id ? null : (cash_source || null)]
@@ -50,7 +51,7 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   const { shop_id, date, category, amount, note, credit_card_id, cash_source, admin_password } = req.body;
-  assertDateAllowed(date, admin_password);
+  assertDateAllowed(date, admin_password, isTrustedAdmin(req));
   const prev = await pool.query('SELECT amount, category, credit_card_id FROM daily_expense WHERE id=$1', [req.params.id]);
   const { rows } = await pool.query(
     `UPDATE daily_expense SET shop_id=$1, date=$2, category=$3, amount=$4, note=$5, credit_card_id=$6, cash_source=$7 WHERE id=$8 RETURNING *`,

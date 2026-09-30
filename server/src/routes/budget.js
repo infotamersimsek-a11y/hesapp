@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { assertDateAllowed } from '../dateGuard.js';
+import { isTrustedAdmin } from '../auth.js';
 
 const router = Router();
 
@@ -26,7 +27,7 @@ router.get('/', async (req, res) => {
 router.post('/topup', async (req, res) => {
   const { shop_id, amount, note, date, admin_password } = req.body;
   if (!shop_id || !amount) return res.status(400).json({ error: 'shop_id and amount required' });
-  assertDateAllowed(date, admin_password);
+  assertDateAllowed(date, admin_password, isTrustedAdmin(req));
   const { rows } = await pool.query(
     `INSERT INTO budget_transaction (shop_id, amount, note, date) VALUES ($1, $2, $3, $4) RETURNING *`,
     [shop_id, amount, note ?? null, date]

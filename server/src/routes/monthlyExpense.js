@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { adjustCardDebt } from '../cardDebt.js';
+import { adjustVendorDebt } from '../vendorDebt.js';
 
 const router = Router();
 
@@ -34,12 +35,13 @@ router.post('/', async (req, res) => {
     [shop_id, year, month, vendor_name, category ?? null, amount, note ?? null, credit_card_id || null]
   );
   if (credit_card_id) await adjustCardDebt(credit_card_id, Number(amount));
+  else await adjustVendorDebt(vendor_name, Number(amount));
   res.status(201).json(rows[0]);
 });
 
 router.put('/:id', async (req, res) => {
   const { shop_id, year, month, vendor_name, category, amount, note, credit_card_id } = req.body;
-  const prev = await pool.query('SELECT amount, credit_card_id FROM monthly_expense WHERE id=$1', [req.params.id]);
+  const prev = await pool.query('SELECT amount, vendor_name, credit_card_id FROM monthly_expense WHERE id=$1', [req.params.id]);
   const { rows } = await pool.query(
     `UPDATE monthly_expense SET shop_id=$1, year=$2, month=$3, vendor_name=$4, category=$5, amount=$6, note=$7, credit_card_id=$8
      WHERE id=$9 RETURNING *`,
@@ -47,14 +49,17 @@ router.put('/:id', async (req, res) => {
   );
   if (!rows.length) return res.status(404).json({ error: 'not found' });
   if (prev.rows[0]?.credit_card_id) await adjustCardDebt(prev.rows[0].credit_card_id, -Number(prev.rows[0].amount));
+  else await adjustVendorDebt(prev.rows[0]?.vendor_name, -Number(prev.rows[0].amount));
   if (credit_card_id) await adjustCardDebt(credit_card_id, Number(amount));
+  else await adjustVendorDebt(vendor_name, Number(amount));
   res.json(rows[0]);
 });
 
 router.delete('/:id', async (req, res) => {
-  const prev = await pool.query('SELECT amount, credit_card_id FROM monthly_expense WHERE id=$1', [req.params.id]);
+  const prev = await pool.query('SELECT amount, vendor_name, credit_card_id FROM monthly_expense WHERE id=$1', [req.params.id]);
   await pool.query('DELETE FROM monthly_expense WHERE id=$1', [req.params.id]);
   if (prev.rows[0]?.credit_card_id) await adjustCardDebt(prev.rows[0].credit_card_id, -Number(prev.rows[0].amount));
+  else if (prev.rows[0]) await adjustVendorDebt(prev.rows[0].vendor_name, -Number(prev.rows[0].amount));
   res.status(204).end();
 });
 

@@ -4,6 +4,7 @@ import VoiceEntry from './VoiceEntry';
 import ReceiptExpense from './ReceiptExpense';
 import ShopSwitcher from './ShopSwitcher';
 import { useLiveRefresh } from './useLiveRefresh';
+import { getDefaultShop } from './auth';
 
 function formatYMD(d) {
   const y = d.getFullYear();
@@ -21,7 +22,7 @@ const FREE_EDIT_DAYS = 3;
 const FREE_EDIT_DATES = Array.from({ length: FREE_EDIT_DAYS }, (_, i) => daysAgo(i));
 const isToday = (isoDate) => isoDate.slice(0, 10) === today();
 const isFreeEditDate = (isoDate) => FREE_EDIT_DATES.includes(isoDate.slice(0, 10));
-const DAYS_PER_PAGE = 3;
+const DAYS_PER_PAGE = 2;
 const EXPENSE_CATEGORIES = ['Yemek', 'Temizlik', 'Kişisel Giderler', 'Ekstra Giderler', 'Ürün Alımı', 'Kredi Kartı Ödemesi', 'Diğer'];
 const CARD_PAYMENT_CATEGORY = 'Kredi Kartı Ödemesi';
 const CARD_OWNER_SHOP = { Tamer: 'Çıtır Tatlı', Ramazan: 'Hacıoğulları' };
@@ -174,7 +175,8 @@ export default function DailyTab({ shops, defaultShopName }) {
   const [incomePage, setIncomePage] = useState(0);
   const [expensePage, setExpensePage] = useState(0);
 
-  const isBackdated = !isFreeEditDate(date);
+  const isTrustedAdmin = getDefaultShop() === 'Hacıoğulları';
+  const isBackdated = !isFreeEditDate(date) && !isTrustedAdmin;
 
   const reload = async () => {
     if (!shopId) return;

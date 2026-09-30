@@ -20,6 +20,18 @@ export function getBankColor(name) {
   return found ? found.color : '#9e9e9e';
 }
 
+export const SUPPLIER_COLORS = {
+  'Lale Gıda': '#2E7D32',
+  'Örgün Gıda': '#EF6C00',
+  'Ambalaj': '#5D4037',
+  'Coca-Cola': '#E30613',
+  'Alpedo': '#0277BD',
+};
+
+export function getSupplierColor(name) {
+  return SUPPLIER_COLORS[name] || '#616161';
+}
+
 export function getContrastText(hex) {
   const c = hex.replace('#', '');
   const r = parseInt(c.substring(0, 2), 16);

@@ -13,6 +13,8 @@ import summaryRouter from './routes/summary.js';
 import aiRouter from './routes/ai.js';
 import creditCardsRouter from './routes/creditCards.js';
 import budgetRouter from './routes/budget.js';
+import vendorDebtRouter from './routes/vendorDebt.js';
+import wasteLogRouter from './routes/wasteLog.js';
 
 dotenv.config();
 
@@ -31,6 +33,8 @@ app.use('/api/summary', summaryRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/credit-cards', creditCardsRouter);
 app.use('/api/budget', budgetRouter);
+app.use('/api/vendor-debt', vendorDebtRouter);
+app.use('/api/waste-log', wasteLogRouter);
 
 app.use((err, req, res, next) => {
   console.error(err);

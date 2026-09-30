@@ -60,4 +60,11 @@ export const api = {
 
   budgetGet: (shop_id) => request(`/budget?shop_id=${shop_id}`),
   budgetTopup: (body) => request('/budget/topup', { method: 'POST', body: JSON.stringify(body) }),
+
+  vendorDebtList: () => request('/vendor-debt'),
+  vendorDebtUpdate: (vendorName, debt_amount) => request(`/vendor-debt/${encodeURIComponent(vendorName)}`, { method: 'PUT', body: JSON.stringify({ debt_amount }) }),
+
+  wasteLogList: (params) => request(`/waste-log?${new URLSearchParams(params)}`),
+  wasteLogCreate: (body) => request('/waste-log', { method: 'POST', body: JSON.stringify(body) }),
+  wasteLogDelete: (id) => request(`/waste-log/${id}`, { method: 'DELETE' }),
 };

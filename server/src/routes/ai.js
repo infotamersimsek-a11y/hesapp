@@ -157,6 +157,8 @@ function stripMarkdown(text) {
 async function gatherFinancialContext() {
   const cardsRes = await pool.query('SELECT * FROM credit_cards ORDER BY id');
   const cards = cardsRes.rows.map(withComputed);
+  const vendorRes = await pool.query('SELECT vendor_name, debt_amount FROM vendor_debt WHERE debt_amount <> 0 ORDER BY debt_amount DESC');
+  const vendorSummary = vendorRes.rows.map((v) => ({ firma: v.vendor_name, borc: Number(v.debt_amount) }));
 
   const now = new Date();
   const year = now.getFullYear();
@@ -195,7 +197,7 @@ async function gatherFinancialContext() {
     });
   }
 
-  const totalDebt = cards.reduce((s, c) => s + Number(c.debt_amount), 0);
+  const totalDebt = cards.reduce((s, c) => s + Number(c.debt_amount), 0) + vendorSummary.reduce((s, v) => s + v.borc, 0);
   const totalCash = shopSummaries.reduce((s, sh) => s + sh.bu_ayki_bakiye, 0);
   const totalDailyRevenue = shopSummaries.reduce((s, sh) => s + sh.gunluk_ortalama_ciro, 0);
 
@@ -217,7 +219,7 @@ async function gatherFinancialContext() {
     .sort((a, b) => a.son_odemeye_kalan_gun - b.son_odemeye_kalan_gun)[0] || null;
   const deferredCards = cardSummary.filter((c) => c.bu_ay_ertelendi).map((c) => c.ad);
 
-  return { cardSummary, totalDebt, shopSummaries, totalDailyRevenue, totalCash, critical, deferredCards };
+  return { cardSummary, vendorSummary, totalDebt, shopSummaries, totalDailyRevenue, totalCash, critical, deferredCards };
 }
 
 router.post('/debt-chat', async (req, res) => {
@@ -229,7 +231,8 @@ router.post('/debt-chat', async (req, res) => {
   const ctx = await gatherFinancialContext();
   const contextText = `Güncel veriler (JSON):
 KARTLAR: ${JSON.stringify(ctx.cardSummary)}
-TOPLAM BORÇ: ${ctx.totalDebt} TL
+FİRMA BORÇLARI (Sabit Gider tedarikçileri, kart borcundan ayrı): ${JSON.stringify(ctx.vendorSummary)}
+TOPLAM BORÇ (kart + firma dahil): ${ctx.totalDebt} TL
 EN_KRITIK_KART: ${JSON.stringify(ctx.critical)}
 ERTELENMİŞ_KARTLAR: ${JSON.stringify(ctx.deferredCards)}
 DÜKKAN DURUMU (bu ay): ${JSON.stringify(ctx.shopSummaries)}

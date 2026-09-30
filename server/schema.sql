@@ -68,8 +68,31 @@ CREATE TABLE IF NOT EXISTS monthly_expense (
   credit_card_id INTEGER REFERENCES credit_cards(id) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS vendor_debt (
+  vendor_name TEXT PRIMARY KEY,
+  debt_amount NUMERIC(12,2) NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS vendor_debt_log (
+  id SERIAL PRIMARY KEY,
+  vendor_name TEXT NOT NULL,
+  amount NUMERIC(12,2) NOT NULL,
+  recorded_at TIMESTAMP NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS waste_log (
+  id SERIAL PRIMARY KEY,
+  shop_id INTEGER NOT NULL REFERENCES shops(id),
+  date DATE NOT NULL,
+  category TEXT NOT NULL CHECK (category IN ('Sıcak Tatlı', 'Kadayıf', 'Baklava', 'Diğer')),
+  amount_kg NUMERIC(10,2) NOT NULL,
+  note TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_daily_income_date ON daily_income(shop_id, date);
 CREATE INDEX IF NOT EXISTS idx_daily_expense_date ON daily_expense(shop_id, date);
 CREATE INDEX IF NOT EXISTS idx_monthly_expense_ym ON monthly_expense(shop_id, year, month);
 CREATE INDEX IF NOT EXISTS idx_debt_log_card ON credit_card_debt_log(credit_card_id, recorded_at);
 CREATE INDEX IF NOT EXISTS idx_budget_transaction_shop ON budget_transaction(shop_id);
+CREATE INDEX IF NOT EXISTS idx_vendor_debt_log ON vendor_debt_log(vendor_name, recorded_at);
+CREATE INDEX IF NOT EXISTS idx_waste_log_date ON waste_log(shop_id, date);

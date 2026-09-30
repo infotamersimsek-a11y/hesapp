@@ -2,22 +2,14 @@ import { useEffect, useState } from 'react';
 import { api } from './api';
 import { useLiveRefresh } from './useLiveRefresh';
 import { formatMoney } from './format';
-import { getBankColor, getContrastText, TURKISH_BANKS } from './bankColors';
+import { getBankColor, getContrastText, TURKISH_BANKS, SUPPLIER_COLORS, getSupplierColor } from './bankColors';
 
 const dateFormatter = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
 const formatDate = (isoDate) => dateFormatter.format(new Date(isoDate));
 
 const OWNERS = ['Tamer', 'Ramazan'];
 const CARD_TYPES = ['Kredi Kartı', 'Esnek Hesap', 'İhtiyaç Kredisi', 'Cari Hesap', 'Diğer'];
-const SUPPLIER_COLORS = {
-  'Lale Gıda': '#2E7D32',
-  'Örgün Gıda': '#EF6C00',
-  'Ambalaj': '#5D4037',
-  'Coca-Cola': '#E30613',
-  'Alpedo': '#0277BD',
-};
 const SUPPLIER_COMPANIES = Object.keys(SUPPLIER_COLORS);
-const getSupplierColor = (name) => SUPPLIER_COLORS[name] || '#616161';
 const getEntityColor = (name) => SUPPLIER_COLORS[name] || getBankColor(name);
 
 function groupCards(cards) {
@@ -240,13 +232,13 @@ function buildSuggestedQuestions(cards) {
   return qs;
 }
 
-function DebtAdvisor({ cards }) {
+function DebtAdvisor({ cards, vendors }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
-  const totalDebt = cards.reduce((s, c) => s + Number(c.debt_amount), 0);
+  const totalDebt = cards.reduce((s, c) => s + Number(c.debt_amount), 0) + vendors.reduce((s, v) => s + Number(v.debt_amount), 0);
   const active = cards.filter((c) => !c.is_deferred_this_month && Number(c.debt_amount) > 0);
   const nearestDue = active
     .filter((c) => c.days_until_due !== null)
@@ -336,8 +328,74 @@ function DebtAdvisor({ cards }) {
   );
 }
 
+function VendorCard({ v, onDone }) {
+  const [showDetail, setShowDetail] = useState(false);
+  const [amount, setAmount] = useState(v.debt_amount);
+  const color = getSupplierColor(v.vendor_name);
+  const textColor = getContrastText(color);
+  const isDark = textColor === '#ffffff';
+  const overlayWeak = isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.07)';
+  const overlayStrong = isDark ? 'rgba(255,255,255,0.30)' : 'rgba(0,0,0,0.16)';
+  const hasHistory = v.history.some((h) => h.delta != null);
+
+  const save = async (e) => {
+    e.preventDefault();
+    if (amount === '') return;
+    await api.vendorDebtUpdate(v.vendor_name, amount);
+    onDone();
+  };
+
+  return (
+    <div className="credit-card" style={{ background: color, color: textColor, '--overlay-weak': overlayWeak, '--overlay-strong': overlayStrong }}>
+      <div className="credit-card-header">
+        <strong className="bank-name">{v.vendor_name}</strong>
+      </div>
+      <div className="debt-item">
+        <div className="debt-hero">
+          <span className="debt-hero-label">Borç</span>
+          <span className="debt-hero-value">{formatMoney(v.debt_amount)}</span>
+        </div>
+        {hasHistory && (
+          <>
+            <button type="button" className="detail-toggle" onClick={() => setShowDetail((s) => !s)}>
+              {showDetail ? 'Geçmişi gizle ▲' : 'Geçmişi göster ▼'}
+            </button>
+            {showDetail && (
+              <div className="debt-history">
+                {v.history.filter((h) => h.delta != null).slice(0, 5).map((h, i) => (
+                  <span key={i} className="hint">
+                    {h.delta > 0 ? `Ödeme: ${formatMoney(h.delta)}` : `Borç artışı: ${formatMoney(-h.delta)}`} — {formatDate(h.recorded_at)}
+                  </span>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+        <form className="inline-update" onSubmit={save}>
+          <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <button type="submit">Borcu Güncelle</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function VendorCards({ vendors, onDone }) {
+  if (vendors.length === 0) return null;
+  return (
+    <div>
+      <h3>Firma Borçları</h3>
+      <p className="hint">Sabit Gider (Aylık sekmesi) üzerinden kart seçilmeden eklenen ödemeler, ilgili firmanın borcunu otomatik artırır.</p>
+      <div className="card-list">
+        {vendors.map((v) => <VendorCard key={v.vendor_name} v={v} onDone={onDone} />)}
+      </div>
+    </div>
+  );
+}
+
 export default function CreditCardsTab() {
   const [cards, setCards] = useState([]);
+  const [vendors, setVendors] = useState([]);
   const [bankChoice, setBankChoice] = useState(TURKISH_BANKS[0]);
   const [bankCustom, setBankCustom] = useState('');
   const [owner, setOwner] = useState(OWNERS[0]);
@@ -353,6 +411,7 @@ export default function CreditCardsTab() {
 
   const reload = async () => {
     setCards(await api.creditCardsList());
+    setVendors(await api.vendorDebtList());
   };
 
   useEffect(() => { reload(); }, []);
@@ -404,14 +463,18 @@ export default function CreditCardsTab() {
     reload();
   };
 
-  const totalDebt = cards.reduce((s, c) => s + Number(c.debt_amount), 0);
+  const cardDebt = cards.reduce((s, c) => s + Number(c.debt_amount), 0);
+  const vendorDebt = vendors.reduce((s, v) => s + Number(v.debt_amount), 0);
+  const totalDebt = cardDebt + vendorDebt;
   const groups = groupCards(cards);
 
   return (
     <div>
       <div className="summary">
         <span>Kart sayısı: {cards.length}</span>
-        <span className="bad">Toplam Borç: {formatMoney(totalDebt)}</span>
+        <span>Kart Borcu: {formatMoney(cardDebt)}</span>
+        {vendorDebt > 0 && <span>Firma Borcu: {formatMoney(vendorDebt)}</span>}
+        <span className="bad">Genel Toplam: {formatMoney(totalDebt)}</span>
       </div>
 
       <section>
@@ -514,7 +577,9 @@ export default function CreditCardsTab() {
         );
       })}
 
-      <DebtAdvisor cards={cards} />
+      <VendorCards vendors={vendors} onDone={reload} />
+
+      <DebtAdvisor cards={cards} vendors={vendors} />
     </div>
   );
 }
