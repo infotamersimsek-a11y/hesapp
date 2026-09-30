@@ -26,7 +26,7 @@ const DAYS_PER_PAGE = 2;
 const EXPENSE_CATEGORIES = ['Yemek', 'Temizlik', 'Kişisel Giderler', 'Ekstra Giderler', 'Ürün Alımı', 'Kredi Kartı Ödemesi', 'Diğer'];
 const CARD_PAYMENT_CATEGORY = 'Kredi Kartı Ödemesi';
 const CARD_OWNER_SHOP = { Tamer: 'Çıtır Tatlı', Ramazan: 'Hacıoğulları' };
-const WASTE_CATEGORIES = ['Sıcak Tatlı', 'Kadayıf', 'Baklava', 'Diğer'];
+const WASTE_CATEGORIES = ['Sıcak Tatlı', 'Cevizli Baklava-Kadayıf', 'Fıstıklı Baklava-Kadayıf', 'Diğer'];
 
 const dateFormatter = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
 const formatDate = (isoDate) => dateFormatter.format(new Date(isoDate));

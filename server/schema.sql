@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS waste_log (
   id SERIAL PRIMARY KEY,
   shop_id INTEGER NOT NULL REFERENCES shops(id),
   date DATE NOT NULL,
-  category TEXT NOT NULL CHECK (category IN ('Sıcak Tatlı', 'Kadayıf', 'Baklava', 'Diğer')),
+  category TEXT NOT NULL CHECK (category IN ('Sıcak Tatlı', 'Cevizli Baklava-Kadayıf', 'Fıstıklı Baklava-Kadayıf', 'Diğer')),
   amount_kg NUMERIC(10,2) NOT NULL,
   note TEXT
 );
