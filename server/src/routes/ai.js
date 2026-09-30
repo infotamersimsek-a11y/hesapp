@@ -179,9 +179,10 @@ async function gatherFinancialContext() {
       `SELECT COALESCE(SUM(amount),0) AS total FROM monthly_expense WHERE shop_id=$1 AND year=$2 AND month=$3`,
       [shop.id, year, month]
     );
+    const sundayFilter = shop.name === 'Hacıoğulları' ? '' : 'AND EXTRACT(DOW FROM date) <> 0';
     const avgDaily = await pool.query(
       `SELECT COALESCE(SUM(amount),0) AS total, COUNT(DISTINCT date) AS gun_sayisi FROM daily_income
-       WHERE shop_id=$1 AND EXTRACT(YEAR FROM date)=$2 AND EXTRACT(MONTH FROM date)=$3 AND EXTRACT(DOW FROM date) <> 0`,
+       WHERE shop_id=$1 AND EXTRACT(YEAR FROM date)=$2 AND EXTRACT(MONTH FROM date)=$3 ${sundayFilter}`,
       [shop.id, year, month]
     );
     const totalIncome = Number(income.rows[0].total);
@@ -236,7 +237,7 @@ TOPLAM BORÇ (kart + firma dahil): ${ctx.totalDebt} TL
 EN_KRITIK_KART: ${JSON.stringify(ctx.critical)}
 ERTELENMİŞ_KARTLAR: ${JSON.stringify(ctx.deferredCards)}
 DÜKKAN DURUMU (bu ay): ${JSON.stringify(ctx.shopSummaries)}
-GÜNLÜK ORTALAMA TOPLAM CİRO (iki dükkan, Pazar hariç): ${ctx.totalDailyRevenue} TL
+GÜNLÜK ORTALAMA TOPLAM CİRO (Çıtır Tatlı Pazar hariç, Hacıoğulları Pazar dahil): ${ctx.totalDailyRevenue} TL
 BU AYKİ TOPLAM NAKİT DURUMU: ${ctx.totalCash} TL`;
 
   const chatMessages = [

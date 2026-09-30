@@ -38,17 +38,6 @@ function aggregateWasteDaily(entries) {
   return Array.from(map.entries()).map(([date, total]) => ({ date, total }));
 }
 
-function mergeDailyIncome(lists) {
-  const map = new Map();
-  for (const list of lists) {
-    for (const item of list) {
-      const key = item.date.slice(0, 10);
-      map.set(key, (map.get(key) || 0) + item.total);
-    }
-  }
-  return Array.from(map.entries()).map(([date, total]) => ({ date, total }));
-}
-
 function formatYMD(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -58,7 +47,7 @@ function formatYMD(d) {
 
 const DAY_ABBR = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
 
-function buildMonthDays(dailyIncome, year, month) {
+function buildMonthDays(dailyIncome, year, month, includeSunday = false) {
   const today = new Date();
   const isCurrentMonth = year === today.getFullYear() && month === today.getMonth() + 1;
   const daysInMonth = new Date(year, month, 0).getDate();
@@ -70,7 +59,7 @@ function buildMonthDays(dailyIncome, year, month) {
     const d = new Date(year, month - 1, i + 1);
     const dateStr = formatYMD(d);
     const dow = d.getDay();
-    return { dateStr, total: byDate.get(dateStr) ?? 0, isSunday: dow === 0, dow };
+    return { dateStr, total: byDate.get(dateStr) ?? 0, isSunday: dow === 0 && !includeSunday, dow };
   });
 
   return { days, isCurrentMonth, todayStr, byDate };
@@ -102,19 +91,28 @@ function analyzeDaySet(daySet, isCurrentMonth, todayStr, byDate) {
   return { avg, missingDates };
 }
 
-function analyzeMonthDays(dailyIncome, year, month) {
-  const { days, isCurrentMonth, todayStr, byDate } = buildMonthDays(dailyIncome, year, month);
+function analyzeMonthDays(dailyIncome, year, month, includeSunday = false) {
+  const { days, isCurrentMonth, todayStr, byDate } = buildMonthDays(dailyIncome, year, month, includeSunday);
   const { avg, missingDates } = analyzeDaySet(days, isCurrentMonth, todayStr, byDate);
   return { days, avg, missingDates };
 }
 
-function dailyAverage(dailyIncome, year, month) {
-  return analyzeMonthDays(dailyIncome, year, month).avg;
+function dailyAverage(dailyIncome, year, month, includeSunday = false) {
+  return analyzeMonthDays(dailyIncome, year, month, includeSunday).avg;
 }
 
 function chunkWeeks(days) {
   const weeks = [];
-  for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
+  let current = [];
+  for (const d of days) {
+    const isoDow = d.dow === 0 ? 7 : d.dow;
+    if (isoDow === 1 && current.length) {
+      weeks.push(current);
+      current = [];
+    }
+    current.push(d);
+  }
+  if (current.length) weeks.push(current);
   return weeks;
 }
 
@@ -123,11 +121,11 @@ function simpleAverage(daySet) {
   return businessDays.length ? businessDays.reduce((s, d) => s + d.total, 0) / businessDays.length : 0;
 }
 
-function DailyRevenueChart({ title, dailyIncome, year, month, formatValue = formatMoney, avgLabel = 'Günlük Ortalama Ciro', detectMissing = true }) {
-  const { days, isCurrentMonth, todayStr, byDate } = buildMonthDays(dailyIncome, year, month);
+function DailyRevenueChart({ title, dailyIncome, year, month, formatValue = formatMoney, avgLabel = 'Günlük Ortalama Ciro', detectMissing = true, includeSunday = false }) {
+  const { days, isCurrentMonth, todayStr, byDate } = buildMonthDays(dailyIncome, year, month, includeSunday);
   const weeks = chunkWeeks(days);
   const [weekIdx, setWeekIdx] = useState(weeks.length - 1);
-  useEffect(() => { setWeekIdx(chunkWeeks(buildMonthDays(dailyIncome, year, month).days).length - 1); }, [year, month]);
+  useEffect(() => { setWeekIdx(chunkWeeks(buildMonthDays(dailyIncome, year, month, includeSunday).days).length - 1); }, [year, month]);
   const clampedIdx = Math.max(0, Math.min(weekIdx, weeks.length - 1));
   const weekDays = weeks[clampedIdx] || [];
   const { avg, missingDates } = detectMissing
@@ -174,7 +172,11 @@ function DailyRevenueChart({ title, dailyIncome, year, month, formatValue = form
               ⚠ {missingDates.length} gün veri girilmemiş: {missingDates.map((d) => dateFormatter.format(new Date(d))).join(', ')} — bu günler ortalamaya dahil edilmedi, geriye dönük girmeyi unutma.
             </p>
           )}
-          <p className="hint">{detectMissing ? 'Mavi: hesaba dahil · Gri: Pazar (ortalamaya dahil değil) · Kırmızı: veri girilmemiş (ortalamaya dahil değil)' : 'Mavi: hesaba dahil · Gri: Pazar (ortalamaya dahil değil)'}</p>
+          <p className="hint">
+            {includeSunday
+              ? (detectMissing ? 'Mavi: hesaba dahil · Kırmızı: veri girilmemiş (ortalamaya dahil değil)' : 'Mavi: hesaba dahil')
+              : (detectMissing ? 'Mavi: hesaba dahil · Gri: Pazar (ortalamaya dahil değil) · Kırmızı: veri girilmemiş (ortalamaya dahil değil)' : 'Mavi: hesaba dahil · Gri: Pazar (ortalamaya dahil değil)')}
+          </p>
           <p>{avgLabel}: <strong>{formatValue(avg)}</strong></p>
         </>
       )}
@@ -184,10 +186,11 @@ function DailyRevenueChart({ title, dailyIncome, year, month, formatValue = form
 
 function ShopComparisonChart({ shops, summaries, year, month }) {
   const rows = shops
-    .map((s) => ({ name: s.name, avg: summaries[s.id] ? dailyAverage(summaries[s.id].dailyIncome, year, month) : null }))
+    .map((s) => ({ name: s.name, avg: summaries[s.id] ? dailyAverage(summaries[s.id].dailyIncome, year, month, s.name === 'Hacıoğulları') : null }))
     .filter((r) => r.avg !== null);
   if (rows.length === 0) return null;
   const maxAvg = Math.max(1, ...rows.map((r) => r.avg));
+  const total = rows.reduce((s, r) => s + r.avg, 0);
 
   return (
     <div className="report-box">
@@ -203,6 +206,7 @@ function ShopComparisonChart({ shops, summaries, year, month }) {
           </div>
         ))}
       </div>
+      <p className="hint">Toplam (iki dükkan): <strong>{formatMoney(total)}</strong></p>
     </div>
   );
 }
@@ -217,7 +221,6 @@ export default function MonthlyTab({ shops }) {
   const [vendorNote, setVendorNote] = useState('');
   const [vendorAmount, setVendorAmount] = useState('');
   const [vendorCardId, setVendorCardId] = useState('');
-  const [expenses, setExpenses] = useState([]);
   const [cards, setCards] = useState([]);
   const [showReport, setShowReport] = useState(false);
   const [reportMode, setReportMode] = useState('separate');
@@ -244,12 +247,10 @@ export default function MonthlyTab({ shops }) {
     if (hacId) {
       const daysInMonth = new Date(year, month, 0).getDate();
       const monthStr = String(month).padStart(2, '0');
-      const [exp, cardList, wasteList] = await Promise.all([
-        api.monthlyExpenseList({ shop_id: hacId, year, month }),
+      const [cardList, wasteList] = await Promise.all([
         api.creditCardsList(),
         api.wasteLogList({ shop_id: hacId, from: `${year}-${monthStr}-01`, to: `${year}-${monthStr}-${String(daysInMonth).padStart(2, '0')}` }),
       ]);
-      setExpenses(exp);
       setCards(cardList);
       setWaste(wasteList);
     }
@@ -299,7 +300,6 @@ export default function MonthlyTab({ shops }) {
               <span>POS Gelir: {formatMoney(sum.posIncome)}</span>
               <span>Toplam Gelir: {formatMoney(sum.totalIncome)}</span>
               <span>Toplam Gider: {formatMoney(sum.totalExpense)}</span>
-              {s.id === hacId && <span>Sabit Gider: {formatMoney(sum.fixedExpense)}</span>}
             </div>
           </div>
         );
@@ -317,10 +317,9 @@ export default function MonthlyTab({ shops }) {
             <div className="summary">
               <span>Toplam Gelir: {formatMoney(totalIncome)}</span>
               <span>Toplam Gider: {formatMoney(totalExpense)}</span>
+              <span>Sabit Gider: {formatMoney(summaries[hacId]?.fixedExpense ?? 0)}</span>
               <span className={totalBalance >= 0 ? 'ok' : 'bad'}>Bakiye: {formatMoney(totalBalance)}</span>
-              {shops.map((sh) => (
-                <span key={sh.id}>Geçen Ay: {sh.name} {formatMoney(Math.max(0, prevSummaries[sh.id]?.balance ?? 0))}</span>
-              ))}
+              <span>Geçen Ay: {formatMoney(shops.reduce((s, sh) => s + Math.max(0, prevSummaries[sh.id]?.balance ?? 0), 0))}</span>
             </div>
           </div>
         );
@@ -344,17 +343,7 @@ export default function MonthlyTab({ shops }) {
           </select>
           <button type="submit">Ekle</button>
         </form>
-        <ul>
-          {expenses.map((x) => {
-            const card = cards.find((c) => c.id === x.credit_card_id);
-            return (
-              <li key={x.id}>
-                {x.vendor_name}{x.note ? ` — ${x.note}` : ''}: {Number(x.amount).toFixed(2)} ₺ {card ? <span className="tag-pos">{card.name}</span> : ''}
-                <button onClick={() => api.monthlyExpenseDelete(x.id).then(reload)}>Sil</button>
-              </li>
-            );
-          })}
-        </ul>
+        <p className="hint">Eklenen ödemeler ilgili firmanın borcuna işlenir — firma bazlı durumu Kredi Kartları sekmesindeki "Firma Borçları" kartlarından takip et.</p>
       </section>
 
       {hacId && waste.length > 0 && (() => {
@@ -475,17 +464,10 @@ export default function MonthlyTab({ shops }) {
         {shops.map((s) => {
           const sum = summaries[s.id];
           if (!sum) return null;
-          return <DailyRevenueChart key={s.id} title={`${s.name} — Günlük Ciro`} dailyIncome={sum.dailyIncome} year={year} month={month} />;
+          return <DailyRevenueChart key={s.id} title={`${s.name} — Günlük Ciro`} dailyIncome={sum.dailyIncome} year={year} month={month} includeSunday={s.name === 'Hacıoğulları'} />;
         })}
 
         <ShopComparisonChart shops={shops} summaries={summaries} year={year} month={month} />
-
-        {(() => {
-          const validSums = shops.map((s) => summaries[s.id]).filter(Boolean);
-          if (validSums.length === 0) return null;
-          const combinedDaily = mergeDailyIncome(validSums.map((s) => s.dailyIncome));
-          return <DailyRevenueChart title="Genel (Tüm Dükkanlar) — Günlük Ciro" dailyIncome={combinedDaily} year={year} month={month} />;
-        })()}
       </section>
     </div>
   );

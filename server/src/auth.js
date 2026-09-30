@@ -10,8 +10,8 @@ function passwordsMatch(a, b) {
 
 export function resolveLogin(password) {
   const passwordShops = [
-    { password: process.env.APP_PASSWORD, defaultShop: 'Hacıoğulları' },
-    { password: process.env.APP_PASSWORD_2, defaultShop: 'Çıtır Tatlı' },
+    { password: process.env.APP_PASSWORD, defaultShop: 'Çıtır Tatlı' },
+    { password: process.env.APP_PASSWORD_2, defaultShop: 'Hacıoğulları' },
   ];
   const match = passwordShops.find((p) => passwordsMatch(p.password, password));
   return match ? match.defaultShop : null;
