@@ -245,7 +245,6 @@ export default function MonthlyTab({ shops }) {
               <span>Toplam Gelir: {formatMoney(sum.totalIncome)}</span>
               <span>Toplam Gider: {formatMoney(sum.totalExpense)}</span>
               {s.id === hacId && <span>Sabit Gider: {formatMoney(sum.fixedExpense)}</span>}
-              <span className={sum.balance >= 0 ? 'ok' : 'bad'}>Bakiye: {formatMoney(sum.balance)}</span>
             </div>
           </div>
         );
