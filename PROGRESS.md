@@ -533,3 +533,9 @@ Neon/Groq olmadan hızlı görsel test için: `cd server && npm run preview` (be
 - `client/src/App.css`: Buton hiyerarşisi netleştirildi — asıl "Ekle"/"Gönder" (gönderim/commit) butonları dolu yeşil kaldı, ama "Sesle Ekle", "Dekont/Fotoğraf Ekle", "+ Bütçeye Ekle", "Özet Raporu Göster" gibi yardımcı/tetikleyici butonlar artık anahat (outline, beyaz zemin + yeşil çerçeve) stiline geçti — hangisinin asıl işlemi tamamladığı, hangisinin sadece bir form/araç açtığı görsel olarak ayrışıyor. Liste satırlarına (Gelir/Gider Geçmişi) hover arka planı ve pill-shape Sil/Düzenle butonları eklendi.
 - Test edildi: Playwright ile Günlük, Aylık, Kredi Kartları sekmeleri kontrol edildi — marka rozeti tüm sekmelerde tutarlı, gelir/gider renk kodu net görünüyor, buton hiyerarşisi (dolu vs anahat) doğru uygulanmış. Canlıda doğrulandı.
 - Build temiz, commit+push edildi, Vercel otomatik deploy etti, canlıda yeni CSS bundle hash'i ile doğrulandı.
+
+## Aylık — Dükkan Bazlı Bakiye Satırı Kaldırıldı
+- 2026-09-17: Kullanıcı isteği: "Aylık kısımında dükkanlarda yer alan bakiyeleri kaldıralım, sadece toplam bakiyede olan tek kalsın." Her dükkanın kendi özet kutusunda ayrı bir "Bakiye" satırı vardı, "Toplam (İki Dükkan)" kutusunda da ayrıca vardı — tekrar/gürültüydü.
+- `client/src/MonthlyTab.jsx`: dükkan bazlı özet kutusundaki Bakiye satırı kaldırıldı. Toplam Gelir/Gider/Sabit Gider satırları aynen kaldı, Bakiye artık tek yerde ("Toplam (İki Dükkan)" kutusunda) görünüyor.
+- Test edildi: Playwright ile Aylık sekmesi kontrol edildi, her iki dükkan kutusunda Bakiye satırı yok, toplam kutusunda tek Bakiye doğru görünüyor.
+- Build temiz, commit+push edildi, Vercel otomatik deploy etti, canlıda doğrulandı.
