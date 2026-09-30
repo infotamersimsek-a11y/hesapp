@@ -385,10 +385,18 @@ const fixedExpenseMonthFormatter = new Intl.DateTimeFormat('tr-TR', { month: 'lo
 function FixedExpenseSummary({ expenses }) {
   if (expenses.length === 0) return null;
   const byCategory = new Map();
+  const byOtherVendor = new Map();
   for (const x of expenses) {
-    byCategory.set(x.category, (byCategory.get(x.category) || 0) + Number(x.amount));
+    if (x.category === 'Diğer') {
+      byOtherVendor.set(x.vendor_name, (byOtherVendor.get(x.vendor_name) || 0) + Number(x.amount));
+    } else {
+      byCategory.set(x.category, (byCategory.get(x.category) || 0) + Number(x.amount));
+    }
   }
-  const rows = Array.from(byCategory.entries()).map(([category, total]) => ({ category, total })).sort((a, b) => b.total - a.total);
+  const rows = [
+    ...Array.from(byCategory.entries()).map(([label, total]) => ({ label, total })),
+    ...Array.from(byOtherVendor.entries()).map(([label, total]) => ({ label, total })),
+  ].sort((a, b) => b.total - a.total);
   const total = rows.reduce((s, r) => s + r.total, 0);
   const monthLabel = fixedExpenseMonthFormatter.format(new Date());
 
@@ -407,7 +415,7 @@ function FixedExpenseSummary({ expenses }) {
             </div>
             <div className="date-chip-row">
               {rows.map((r) => (
-                <span key={r.category} className="date-chip">{r.category}: {formatMoney(r.total)}</span>
+                <span key={r.label} className="date-chip">{r.label}: {formatMoney(r.total)}</span>
               ))}
             </div>
           </div>

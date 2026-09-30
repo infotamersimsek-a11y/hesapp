@@ -346,19 +346,23 @@ export default function MonthlyTab({ shops }) {
         <p className="hint">Eklenen ödemeler ilgili firmanın borcuna işlenir — firma bazlı durumu Kredi Kartları sekmesindeki "Firma Borçları" kartlarından takip et.</p>
       </section>
 
-      {hacId && waste.length > 0 && (() => {
+      {hacId && (() => {
         const byCategory = aggregateWasteByCategory(waste);
         const totalKg = byCategory.reduce((s, w) => s + w.total, 0);
         const daily = aggregateWasteDaily(waste);
         return (
           <section>
             <h3>İmha (Fire) — Hacıoğulları</h3>
-            <ul className="report-list">
-              {byCategory.map((w) => (
-                <li key={w.category}><span>{w.category}</span><span>{formatKg(w.total)}</span></li>
-              ))}
-              <li><span><strong>Toplam</strong></span><span><strong>{formatKg(totalKg)}</strong></span></li>
-            </ul>
+            {waste.length === 0 ? (
+              <p className="hint">Bu ay için imha kaydı yok. Günlük sekmesinden (Hacıoğulları seçiliyken) "İmha (Fire) Takibi" ile ekleyebilirsin.</p>
+            ) : (
+              <ul className="report-list">
+                {byCategory.map((w) => (
+                  <li key={w.category}><span>{w.category}</span><span>{formatKg(w.total)}</span></li>
+                ))}
+                <li><span><strong>Toplam</strong></span><span><strong>{formatKg(totalKg)}</strong></span></li>
+              </ul>
+            )}
             <DailyRevenueChart
               title="İmha — Haftalık Toplam"
               dailyIncome={daily}
@@ -367,6 +371,7 @@ export default function MonthlyTab({ shops }) {
               formatValue={formatKg}
               avgLabel="Haftalık Günlük Ortalama İmha"
               detectMissing={false}
+              includeSunday
             />
           </section>
         );
