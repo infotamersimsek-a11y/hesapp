@@ -19,6 +19,25 @@ function mergeByKey(lists, key) {
     .sort((a, b) => b.total - a.total);
 }
 
+function formatKg(v) {
+  return `${Number(v).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} kg`;
+}
+
+function aggregateWasteByCategory(entries) {
+  const map = new Map();
+  for (const e of entries) map.set(e.category, (map.get(e.category) || 0) + Number(e.amount_kg));
+  return Array.from(map.entries()).map(([category, total]) => ({ category, total })).sort((a, b) => b.total - a.total);
+}
+
+function aggregateWasteDaily(entries) {
+  const map = new Map();
+  for (const e of entries) {
+    const key = e.date.slice(0, 10);
+    map.set(key, (map.get(key) || 0) + Number(e.amount_kg));
+  }
+  return Array.from(map.entries()).map(([date, total]) => ({ date, total }));
+}
+
 function mergeDailyIncome(lists) {
   const map = new Map();
   for (const list of lists) {
@@ -70,10 +89,9 @@ function formatDayRange(days) {
   return `${firstDayNum}-${lastDayNum} ${label} arası`;
 }
 
-function analyzeMonthDays(dailyIncome, year, month) {
-  const { days, isCurrentMonth, todayStr, byDate } = buildMonthDays(dailyIncome, year, month);
+function analyzeDaySet(daySet, isCurrentMonth, todayStr, byDate) {
   const missingDates = [];
-  const businessDays = days.filter((d) => {
+  const businessDays = daySet.filter((d) => {
     if (d.isSunday) return false;
     if (byDate.has(d.dateStr)) return true;
     if (isCurrentMonth && d.dateStr === todayStr) return false;
@@ -81,6 +99,12 @@ function analyzeMonthDays(dailyIncome, year, month) {
     return false;
   });
   const avg = businessDays.length ? businessDays.reduce((s, d) => s + d.total, 0) / businessDays.length : 0;
+  return { avg, missingDates };
+}
+
+function analyzeMonthDays(dailyIncome, year, month) {
+  const { days, isCurrentMonth, todayStr, byDate } = buildMonthDays(dailyIncome, year, month);
+  const { avg, missingDates } = analyzeDaySet(days, isCurrentMonth, todayStr, byDate);
   return { days, avg, missingDates };
 }
 
@@ -88,35 +112,61 @@ function dailyAverage(dailyIncome, year, month) {
   return analyzeMonthDays(dailyIncome, year, month).avg;
 }
 
-function DailyRevenueChart({ title, dailyIncome, year, month }) {
-  const { days, avg, missingDates } = analyzeMonthDays(dailyIncome, year, month);
+function chunkWeeks(days) {
+  const weeks = [];
+  for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
+  return weeks;
+}
+
+function simpleAverage(daySet) {
+  const businessDays = daySet.filter((d) => !d.isSunday);
+  return businessDays.length ? businessDays.reduce((s, d) => s + d.total, 0) / businessDays.length : 0;
+}
+
+function DailyRevenueChart({ title, dailyIncome, year, month, formatValue = formatMoney, avgLabel = 'Günlük Ortalama Ciro', detectMissing = true }) {
+  const { days, isCurrentMonth, todayStr, byDate } = buildMonthDays(dailyIncome, year, month);
+  const weeks = chunkWeeks(days);
+  const [weekIdx, setWeekIdx] = useState(weeks.length - 1);
+  useEffect(() => { setWeekIdx(chunkWeeks(buildMonthDays(dailyIncome, year, month).days).length - 1); }, [year, month]);
+  const clampedIdx = Math.max(0, Math.min(weekIdx, weeks.length - 1));
+  const weekDays = weeks[clampedIdx] || [];
+  const { avg, missingDates } = detectMissing
+    ? analyzeDaySet(weekDays, isCurrentMonth, todayStr, byDate)
+    : { avg: simpleAverage(weekDays), missingDates: [] };
   const missingSet = new Set(missingDates);
-  const maxTotal = Math.max(1, ...days.map((d) => d.total));
-  const rangeLabel = formatDayRange(days);
+  const maxTotal = Math.max(1, ...weekDays.map((d) => d.total));
+  const rangeLabel = formatDayRange(weekDays);
 
   return (
     <div className="report-box">
       <h4>{title}</h4>
       {rangeLabel && <p className="hint">{rangeLabel}</p>}
-      {days.length === 0 ? (
-        <p className="hint">Bu ay için veri yok.</p>
+      {weeks.length > 1 && (
+        <div className="pager">
+          <button type="button" disabled={clampedIdx === 0} onClick={() => setWeekIdx(clampedIdx - 1)}>◀ Önceki Hafta</button>
+          <span>Hafta {clampedIdx + 1} / {weeks.length}</span>
+          <button type="button" disabled={clampedIdx === weeks.length - 1} onClick={() => setWeekIdx(clampedIdx + 1)}>Sonraki Hafta ▶</button>
+        </div>
+      )}
+      {weekDays.length === 0 ? (
+        <p className="hint">Bu hafta için veri yok.</p>
       ) : (
         <>
           <div className="bar-chart-wrap">
             <div className="bar-chart">
-              {days.map((d) => (
+              {weekDays.map((d) => (
                 <div
                   key={d.dateStr}
                   className={`bar${d.isSunday ? ' bar-sunday' : ''}${missingSet.has(d.dateStr) ? ' bar-missing' : ''}`}
                   style={{ height: `${Math.max(2, (d.total / maxTotal) * 100)}%` }}
-                  title={`${dateFormatter.format(new Date(d.dateStr))}: ${missingSet.has(d.dateStr) ? 'veri girilmedi' : formatMoney(d.total)}`}
+                  title={`${dateFormatter.format(new Date(d.dateStr))}: ${missingSet.has(d.dateStr) ? 'veri girilmedi' : formatValue(d.total)}`}
                 >
-                  <span className="bar-value">{missingSet.has(d.dateStr) ? '—' : formatMoney(d.total).replace(' ₺', '')}</span>
+                  <span className="bar-value">{missingSet.has(d.dateStr) ? '—' : formatValue(d.total).replace(' ₺', '')}</span>
                 </div>
               ))}
             </div>
             <div className="bar-labels">
-              {days.map((d) => <span key={d.dateStr} className="bar-label">{DAY_ABBR[d.dow]}</span>)}
+              {weekDays.map((d) => <span key={d.dateStr} className="bar-label">{DAY_ABBR[d.dow]}</span>)}
             </div>
           </div>
           {missingDates.length > 0 && (
@@ -124,8 +174,8 @@ function DailyRevenueChart({ title, dailyIncome, year, month }) {
               ⚠ {missingDates.length} gün veri girilmemiş: {missingDates.map((d) => dateFormatter.format(new Date(d))).join(', ')} — bu günler ortalamaya dahil edilmedi, geriye dönük girmeyi unutma.
             </p>
           )}
-          <p className="hint">Mavi: hesaba dahil · Gri: Pazar (ortalamaya dahil değil) · Kırmızı: veri girilmemiş (ortalamaya dahil değil)</p>
-          <p>Günlük Ortalama Ciro: <strong>{formatMoney(avg)}</strong></p>
+          <p className="hint">{detectMissing ? 'Mavi: hesaba dahil · Gri: Pazar (ortalamaya dahil değil) · Kırmızı: veri girilmemiş (ortalamaya dahil değil)' : 'Mavi: hesaba dahil · Gri: Pazar (ortalamaya dahil değil)'}</p>
+          <p>{avgLabel}: <strong>{formatValue(avg)}</strong></p>
         </>
       )}
     </div>
@@ -171,6 +221,7 @@ export default function MonthlyTab({ shops }) {
   const [cards, setCards] = useState([]);
   const [showReport, setShowReport] = useState(false);
   const [reportMode, setReportMode] = useState('separate');
+  const [waste, setWaste] = useState([]);
 
   const hacId = shops.find((s) => s.name === 'Hacıoğulları')?.id;
 
@@ -191,12 +242,16 @@ export default function MonthlyTab({ shops }) {
     setPrevSummaries(prevMap);
 
     if (hacId) {
-      const [exp, cardList] = await Promise.all([
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const monthStr = String(month).padStart(2, '0');
+      const [exp, cardList, wasteList] = await Promise.all([
         api.monthlyExpenseList({ shop_id: hacId, year, month }),
         api.creditCardsList(),
+        api.wasteLogList({ shop_id: hacId, from: `${year}-${monthStr}-01`, to: `${year}-${monthStr}-${String(daysInMonth).padStart(2, '0')}` }),
       ]);
       setExpenses(exp);
       setCards(cardList);
+      setWaste(wasteList);
     }
   };
 
@@ -301,6 +356,32 @@ export default function MonthlyTab({ shops }) {
           })}
         </ul>
       </section>
+
+      {hacId && waste.length > 0 && (() => {
+        const byCategory = aggregateWasteByCategory(waste);
+        const totalKg = byCategory.reduce((s, w) => s + w.total, 0);
+        const daily = aggregateWasteDaily(waste);
+        return (
+          <section>
+            <h3>İmha (Fire) — Hacıoğulları</h3>
+            <ul className="report-list">
+              {byCategory.map((w) => (
+                <li key={w.category}><span>{w.category}</span><span>{formatKg(w.total)}</span></li>
+              ))}
+              <li><span><strong>Toplam</strong></span><span><strong>{formatKg(totalKg)}</strong></span></li>
+            </ul>
+            <DailyRevenueChart
+              title="İmha — Haftalık Toplam"
+              dailyIncome={daily}
+              year={year}
+              month={month}
+              formatValue={formatKg}
+              avgLabel="Haftalık Günlük Ortalama İmha"
+              detectMissing={false}
+            />
+          </section>
+        );
+      })()}
 
       <section>
         <button type="button" className="file-btn" onClick={() => setShowReport((v) => !v)}>

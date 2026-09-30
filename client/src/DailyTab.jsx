@@ -26,6 +26,7 @@ const DAYS_PER_PAGE = 2;
 const EXPENSE_CATEGORIES = ['Yemek', 'Temizlik', 'Kişisel Giderler', 'Ekstra Giderler', 'Ürün Alımı', 'Kredi Kartı Ödemesi', 'Diğer'];
 const CARD_PAYMENT_CATEGORY = 'Kredi Kartı Ödemesi';
 const CARD_OWNER_SHOP = { Tamer: 'Çıtır Tatlı', Ramazan: 'Hacıoğulları' };
+const WASTE_CATEGORIES = ['Sıcak Tatlı', 'Kadayıf', 'Baklava', 'Diğer'];
 
 const dateFormatter = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
 const formatDate = (isoDate) => dateFormatter.format(new Date(isoDate));
@@ -137,6 +138,66 @@ function BudgetPanel({ shopId, date, isBackdated, adminPassword }) {
         </form>
       )}
       {error && <p className="bad">{error}</p>}
+    </section>
+  );
+}
+
+function WastePanel({ shopId, date, isBackdated, adminPassword }) {
+  const [category, setCategory] = useState(WASTE_CATEGORIES[0]);
+  const [kg, setKg] = useState('');
+  const [note, setNote] = useState('');
+  const [entries, setEntries] = useState([]);
+  const [error, setError] = useState(null);
+
+  const reload = async () => {
+    if (!shopId) return;
+    setEntries(await api.wasteLogList({ shop_id: shopId, from: date, to: date }));
+  };
+
+  useEffect(() => { reload(); }, [shopId, date]);
+  useLiveRefresh(reload);
+
+  const add = async (e) => {
+    e.preventDefault();
+    if (!kg) return;
+    setError(null);
+    try {
+      await api.wasteLogCreate({ shop_id: shopId, date, category, amount_kg: kg, note, admin_password: isBackdated ? adminPassword : undefined });
+      setKg('');
+      setNote('');
+      reload();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const editable = isToday(date);
+  const total = entries.reduce((s, e) => s + Number(e.amount_kg), 0);
+
+  return (
+    <section>
+      <h3>İmha (Fire) Takibi</h3>
+      <p className="hint">Gün sonunda atılan/imha edilen ürünü kg olarak kaydet — aylık ve haftalık toplamlar Aylık sekmesinde görünür.</p>
+      <form onSubmit={add}>
+        <select value={category} onChange={(e) => setCategory(e.target.value)}>
+          {WASTE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <input type="number" step="0.1" placeholder="Kg" value={kg} onChange={(e) => setKg(e.target.value)} required />
+        <input type="text" placeholder="Not (opsiyonel)" value={note} onChange={(e) => setNote(e.target.value)} />
+        <button type="submit">Ekle</button>
+      </form>
+      {error && <p className="bad">{error}</p>}
+      {entries.length > 0 && (
+        <ul>
+          {entries.map((w) => (
+            <li key={w.id}>
+              {w.category}: {Number(w.amount_kg).toLocaleString('tr-TR')} kg {w.note ? `— ${w.note}` : ''}
+              {editable && <button onClick={() => api.wasteLogDelete(w.id).then(reload)}>Sil</button>}
+            </li>
+          ))}
+          <li><strong>Toplam: {total.toLocaleString('tr-TR')} kg</strong></li>
+        </ul>
+      )}
     </section>
   );
 }
@@ -339,6 +400,10 @@ export default function DailyTab({ shops, defaultShopName }) {
         <p className="hint">Mikrofona bas, konuş (örn: "500 lira nakit geldi, 200 lira pos geldi, 50 lira temizlik gideri oldu"), çıkan işlemleri kontrol edip onayla.</p>
         <VoiceEntry shopId={shopId} date={date} adminPassword={isBackdated ? adminPassword : undefined} onSaved={reload} />
       </section>
+
+      {shops.find((s) => s.id === shopId)?.name === 'Hacıoğulları' && (
+        <WastePanel shopId={shopId} date={date} isBackdated={isBackdated} adminPassword={adminPassword} />
+      )}
 
       <div className="grid history-grid">
         <section>
