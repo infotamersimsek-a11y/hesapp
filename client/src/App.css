@@ -41,6 +41,8 @@
 
 html {
   overscroll-behavior-y: contain;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 body {
@@ -53,6 +55,8 @@ body {
   -webkit-tap-highlight-color: transparent;
   font-size: 15px;
   line-height: 1.5;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 button, input, select {
