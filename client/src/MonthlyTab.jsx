@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from './api';
 import { useLiveRefresh } from './useLiveRefresh';
 import { formatMoney } from './format';
+import { generateMonthlyReportPdf } from './pdfReport';
 
 const now = new Date();
 const FIXED_EXPENSE_TYPES = ['Kira', 'Elektrik', 'Su', 'Doğalgaz', 'Ev Kirası', 'Ambalaj', 'Lale Gıda', 'Örgün Gıda', 'Coca-Cola', 'Diğer'];
@@ -223,6 +224,8 @@ export default function MonthlyTab({ shops }) {
   const [vendorCardId, setVendorCardId] = useState('');
   const [cards, setCards] = useState([]);
   const [showReport, setShowReport] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfError, setPdfError] = useState(null);
   const [reportMode, setReportMode] = useState('separate');
   const [waste, setWaste] = useState([]);
 
@@ -381,6 +384,25 @@ export default function MonthlyTab({ shops }) {
         <button type="button" className="file-btn" onClick={() => setShowReport((v) => !v)}>
           {showReport ? 'Özet Raporunu Gizle' : 'Özet Raporu Göster'}
         </button>
+        <button
+          type="button"
+          className="file-btn"
+          disabled={pdfBusy}
+          onClick={async () => {
+            setPdfBusy(true);
+            setPdfError(null);
+            try {
+              await generateMonthlyReportPdf({ year, month, shops });
+            } catch (err) {
+              setPdfError(err.message);
+            } finally {
+              setPdfBusy(false);
+            }
+          }}
+        >
+          {pdfBusy ? 'PDF Hazırlanıyor...' : '📄 PDF İndir'}
+        </button>
+        {pdfError && <p className="bad">{pdfError}</p>}
 
         {showReport && (
           <div className="report-mode-toggle">
