@@ -1,5 +1,6 @@
 import { api } from './api';
 import { formatMoney } from './format';
+import { analyzeMonthDays } from './monthDays';
 
 const monthYearFormatter = new Intl.DateTimeFormat('tr-TR', { month: 'long', year: 'numeric' });
 const dateFormatter = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' });
@@ -97,6 +98,26 @@ export async function generateMonthlyReportPdf({ year, month, shops }) {
     columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } },
   });
   y = doc.lastAutoTable.finalY + 10;
+
+  // Veri Girilmeyen Günler (dükkan bazlı eksik gün tespiti)
+  const missingByShop = shops.map((s, i) => {
+    const { missingDates } = analyzeMonthDays(perShop[i].dailyIncome, year, month, s.name === 'Hacıoğulları');
+    return { shop: s.name, missingDates };
+  });
+  if (missingByShop.some((m) => m.missingDates.length > 0)) {
+    sectionTitle('Veri Girilmeyen Günler');
+    autoTable(doc, {
+      ...tableDefaults,
+      startY: y,
+      head: [['Dükkan', 'Eksik Gün Sayısı', 'Tarihler']],
+      body: missingByShop
+        .filter((m) => m.missingDates.length > 0)
+        .map((m) => [m.shop, String(m.missingDates.length), m.missingDates.map((d) => dateFormatter.format(new Date(d))).join(', ')]),
+      columnStyles: { 1: { halign: 'center', cellWidth: 28 } },
+      styles: { ...tableDefaults.styles, fontSize: 9 },
+    });
+    y = doc.lastAutoTable.finalY + 10;
+  }
 
   // Kategori Bazlı Giderler
   if (combined.expenseByCategory.length > 0) {

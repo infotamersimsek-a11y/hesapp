@@ -37,10 +37,10 @@ router.post('/', async (req, res) => {
   assertDateAllowed(date, admin_password, isTrustedAdmin(req));
   const { rows } = await pool.query(
     `INSERT INTO daily_expense (shop_id, date, category, amount, note, credit_card_id, cash_source) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-    [shop_id, date, category, amount, note ?? null, credit_card_id || null, credit_card_id ? null : (cash_source || null)]
+    [shop_id, date, category, amount, note ?? null, credit_card_id || null, cash_source || null]
   );
   if (credit_card_id) await adjustCardDebt(credit_card_id, debtDeltaFor(category, amount));
-  if (!credit_card_id && cash_source === 'butce') {
+  if (cash_source === 'butce') {
     await pool.query(
       `INSERT INTO budget_transaction (shop_id, amount, note, date, daily_expense_id) VALUES ($1, $2, $3, $4, $5)`,
       [shop_id, -Number(amount), `${category}${note ? ' — ' + note : ''}`, date, rows[0].id]
@@ -55,7 +55,7 @@ router.put('/:id', async (req, res) => {
   const prev = await pool.query('SELECT amount, category, credit_card_id FROM daily_expense WHERE id=$1', [req.params.id]);
   const { rows } = await pool.query(
     `UPDATE daily_expense SET shop_id=$1, date=$2, category=$3, amount=$4, note=$5, credit_card_id=$6, cash_source=$7 WHERE id=$8 RETURNING *`,
-    [shop_id, date, category, amount, note ?? null, credit_card_id || null, credit_card_id ? null : (cash_source || null), req.params.id]
+    [shop_id, date, category, amount, note ?? null, credit_card_id || null, cash_source || null, req.params.id]
   );
   if (!rows.length) return res.status(404).json({ error: 'not found' });
   if (prev.rows[0]?.credit_card_id) await adjustCardDebt(prev.rows[0].credit_card_id, -debtDeltaFor(prev.rows[0].category, prev.rows[0].amount));
