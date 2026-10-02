@@ -204,9 +204,9 @@ export async function generateMonthlyReportPdf({ year, month, shops }) {
     y = doc.lastAutoTable.finalY + 10;
   }
 
-  // 500 TL Üzeri Harcamalar
+  // 300 TL Üzeri Harcamalar
   if (combined.largeExpenses.length > 0) {
-    sectionTitle('500 ₺ Üzeri Harcamalar');
+    sectionTitle('300 ₺ Üzeri Harcamalar');
     autoTable(doc, {
       ...tableDefaults,
       startY: y,

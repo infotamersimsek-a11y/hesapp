@@ -88,14 +88,14 @@ router.get('/monthly', async (req, res) => {
   const largeDaily = await pool.query(
     `SELECT category AS label, note, amount, to_char(date, 'YYYY-MM-DD') AS date FROM daily_expense
      WHERE EXTRACT(YEAR FROM date)=$1 AND EXTRACT(MONTH FROM date)=$2 ${shopFilter}
-     AND amount > 500
+     AND amount > 300
      ORDER BY amount DESC`,
     params
   );
   const largeFixed = await pool.query(
     `SELECT vendor_name AS label, note, amount, NULL AS date FROM monthly_expense
      WHERE year=$1 AND month=$2 ${shopFilter}
-     AND amount > 500
+     AND amount > 300
      ORDER BY amount DESC`,
     params
   );

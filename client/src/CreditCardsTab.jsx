@@ -22,39 +22,6 @@ function groupCards(cards) {
   return Array.from(map.values());
 }
 
-function BalancePhoto({ onRead }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
-
-  const onFile = async (e) => {
-    const file = e.target.files[0];
-    e.target.value = '';
-    if (!file) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const form = new FormData();
-      form.append('image', file);
-      const result = await api.cardBalance(form);
-      onRead(String(result.draft.amount ?? ''));
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <span className="balance-photo">
-      <label className="file-btn small">
-        {busy ? '...' : '📷'}
-        <input type="file" accept="image/*" onChange={onFile} disabled={busy} hidden />
-      </label>
-      {error && <span className="bad"> {error}</span>}
-    </span>
-  );
-}
-
 function CardDetailsPhoto({ onRead }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -152,7 +119,6 @@ function DebtItem({ c, g, onDone, onDelete, onDefer }) {
         </>
       )}
 
-      <DebtActions card={c} onDone={onDone} />
     </div>
   );
 }
@@ -178,39 +144,6 @@ function CardGroup({ g, onDone, onDelete, onDefer }) {
         <DebtItem key={c.id} c={c} g={g} onDone={onDone} onDelete={onDelete} onDefer={onDefer} />
       ))}
     </div>
-  );
-}
-
-function DebtActions({ card, onDone }) {
-  const [amount, setAmount] = useState(card.debt_amount);
-
-  const save = async (newDebt) => {
-    await api.creditCardUpdate(card.id, {
-      name: card.name,
-      owner: card.owner,
-      type: card.type,
-      last4: card.last4,
-      credit_limit: card.credit_limit,
-      debt_amount: newDebt,
-      statement_day: card.statement_day,
-      due_day: card.due_day,
-      note: card.note,
-    });
-    onDone();
-  };
-
-  const setNewTotal = async (e) => {
-    e.preventDefault();
-    if (amount === '') return;
-    await save(amount);
-  };
-
-  return (
-    <form className="inline-update" onSubmit={setNewTotal}>
-      <input type="number" step="0.01" placeholder="Tutar" value={amount} onChange={(e) => setAmount(e.target.value)} />
-      <button type="submit" className="debt-update-btn">Borcu Güncelle</button>
-      <BalancePhoto onRead={setAmount} />
-    </form>
   );
 }
 
@@ -376,7 +309,15 @@ function VendorCard({ v, onDone }) {
 const fixedExpenseMonthFormatter = new Intl.DateTimeFormat('tr-TR', { month: 'long', year: 'numeric' });
 
 function FixedExpenseSummary({ expenses }) {
-  if (expenses.length === 0) return null;
+  const monthLabel = fixedExpenseMonthFormatter.format(new Date());
+  if (expenses.length === 0) {
+    return (
+      <div>
+        <h3>Sabit Giderler ({monthLabel})</h3>
+        <p className="hint">Bu ay için henüz sabit gider girilmedi — Aylık sekmesinden eklenince burada görünecek.</p>
+      </div>
+    );
+  }
   const byCategory = new Map();
   const byOtherVendor = new Map();
   for (const x of expenses) {
@@ -391,7 +332,6 @@ function FixedExpenseSummary({ expenses }) {
     ...Array.from(byOtherVendor.entries()).map(([label, total]) => ({ label, total })),
   ].sort((a, b) => b.total - a.total);
   const total = rows.reduce((s, r) => s + r.total, 0);
-  const monthLabel = fixedExpenseMonthFormatter.format(new Date());
 
   return (
     <div>

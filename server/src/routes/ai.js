@@ -122,16 +122,6 @@ router.post('/receipt-expense', upload.single('image'), async (req, res) => {
   res.json({ draft });
 });
 
-const CARD_BALANCE_SYSTEM_PROMPT = `Bir banka/kredi kartı mobil uygulaması ekran görüntüsüne bakıyorsun. Güncel borç veya bakiye tutarını bul (genelde "Güncel Borç", "Ekstre Borcu", "Bakiye" gibi bir etiketin yanında yazar). SADECE şu JSON formatında döndür, başka hiçbir metin ekleme:
-{"amount": sayı, "note": ekranda görünen ek bilgi (tarih, kart adı vb) veya null}
-Tutarı sadece sayı olarak yaz (₺, TL gibi birimleri çıkar). Birden fazla tutar varsa en belirgin/güncel borç olanı seç.`;
-
-router.post('/card-balance', upload.single('image'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'image dosyası gerekli' });
-  const draft = await visionExtract(req.file.buffer, req.file.mimetype, CARD_BALANCE_SYSTEM_PROMPT);
-  res.json({ draft });
-});
-
 const CARD_DETAILS_SYSTEM_PROMPT = `Bir banka/kredi kartı mobil uygulaması ekran görüntüsüne veya kart ekstresine bakıyorsun. Kartın son 4 hanesini, toplam limitini, güncel borcunu, hesap kesim gününü ve son ödeme gününü bul. SADECE şu JSON formatında döndür, başka hiçbir metin ekleme:
 {"last4": string veya null, "credit_limit": sayı veya null, "debt_amount": sayı veya null, "statement_day": sayı veya null, "due_day": sayı veya null, "note": ek bilgi veya null}
 Tutarları sadece sayı olarak yaz (₺, TL gibi birimleri çıkar). statement_day/due_day SADECE ayın günü olarak yaz (örn 15), tam tarih yazma. Emin olmadığın alanları null bırak.`;
