@@ -382,11 +382,14 @@ export default function DailyTab({ shops, defaultShopName }) {
               required={expenseCategory === CARD_PAYMENT_CATEGORY}
             >
               <option value="">{expenseCategory === CARD_PAYMENT_CATEGORY ? 'Kart seç' : 'Ödeme kartı yok (nakit/pos)'}</option>
-              {cards.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {expenseCategory === CARD_PAYMENT_CATEGORY ? `${c.name} ${c.owner} borcuna öde` : `${c.name} ${c.owner} ile ödendi`}
-                </option>
-              ))}
+              {cards.map((c) => {
+                const label = `${c.name} ${c.owner} — ${c.type}${c.last4 ? ` ••••${c.last4}` : ''}`;
+                return (
+                  <option key={c.id} value={c.id}>
+                    {expenseCategory === CARD_PAYMENT_CATEGORY ? `${label} borcuna öde` : `${label} ile ödendi`}
+                  </option>
+                );
+              })}
             </select>
             {(!expenseCardId || expenseCategory === CARD_PAYMENT_CATEGORY) && (
               <select value={cashSource} onChange={(e) => setCashSource(e.target.value)} required>
@@ -470,7 +473,7 @@ export default function DailyTab({ shops, defaultShopName }) {
                     const card = cards.find((c) => c.id === x.credit_card_id);
                     return (
                       <li key={x.id}>
-                        {x.category}: {Number(x.amount).toFixed(2)} ₺ {x.note ? `— ${x.note}` : ''} {card ? <span className="tag-pos">{card.name}</span> : ''} {x.cash_source === 'butce' ? <span className="tag-butce">Bütçe</span> : ''}
+                        {x.category}: {Number(x.amount).toFixed(2)} ₺ {x.note ? `— ${x.note}` : ''} {card ? <span className="tag-pos">{card.name} {card.owner}{card.last4 ? ` ••••${card.last4}` : ''}</span> : ''} {x.cash_source === 'butce' ? <span className="tag-butce">Bütçe</span> : ''}
                         <AmountEditor
                           item={x}
                           onSave={(amount, admin_password) => api.dailyExpenseUpdate(x.id, {

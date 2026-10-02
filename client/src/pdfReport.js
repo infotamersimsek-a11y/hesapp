@@ -30,6 +30,8 @@ export async function generateMonthlyReportPdf({ year, month, shops }) {
     waste = await api.wasteLogList({ shop_id: hacId, from: `${year}-${monthStr}-01`, to: `${year}-${monthStr}-${String(daysInMonth).padStart(2, '0')}` });
   }
 
+  const debtPaid = await api.creditCardsDebtPaid({ year, month });
+
   const doc = new jsPDF();
   doc.addFileToVFS('Arial.ttf', arialRegularBase64);
   doc.addFont('Arial.ttf', 'Arial', 'normal');
@@ -98,6 +100,34 @@ export async function generateMonthlyReportPdf({ year, month, shops }) {
     columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } },
   });
   y = doc.lastAutoTable.finalY + 10;
+
+  // Kart Borcu — Ay Başı / Şimdi (ne kadar ödendi)
+  if (debtPaid.byCard.length > 0) {
+    sectionTitle(`Kredi Kartı Borcu — Ay Başı / Şimdi (Toplam Ödenen: ${formatMoney(debtPaid.totalPaid)})`);
+    const hasFallback = debtPaid.byCard.some((c) => !c.isMonthStart);
+    autoTable(doc, {
+      ...tableDefaults,
+      startY: y,
+      head: [['Kart', 'Başlangıç Borcu', 'Şimdiki Borç', 'Ödenen']],
+      body: debtPaid.byCard.map((c) => [
+        `${c.name} ${c.owner}`,
+        c.isMonthStart ? formatMoney(c.startDebt) : `${formatMoney(c.startDebt)} (${dateFormatter.format(new Date(c.startDate))} itibarıyla)`,
+        formatMoney(c.currentDebt),
+        formatMoney(c.paid),
+      ]),
+      columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } },
+      styles: { ...tableDefaults.styles, fontSize: hasFallback ? 9 : 10 },
+    });
+    y = doc.lastAutoTable.finalY + 4;
+    if (hasFallback) {
+      doc.setFont('Arial', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text('* Bazı kartlar için ay başından önce kayıt yok, o kartın sistemdeki ilk kayıt tarihi baz alındı.', margin, y);
+      y += 6;
+    }
+    y += 6;
+  }
 
   // Veri Girilmeyen Günler (dükkan bazlı eksik gün tespiti)
   const missingByShop = shops.map((s, i) => {

@@ -299,7 +299,11 @@ export default function MonthlyTab({ shops }) {
           <input type="number" step="0.01" placeholder="Tutar" value={vendorAmount} onChange={(e) => setVendorAmount(e.target.value)} required />
           <select value={vendorCardId} onChange={(e) => setVendorCardId(e.target.value)}>
             <option value="">Ödeme kartı yok</option>
-            {cards.map((c) => <option key={c.id} value={c.id}>{c.name} ile ödendi</option>)}
+            {cards.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} {c.owner} — {c.type}{c.last4 ? ` ••••${c.last4}` : ''} ile ödendi
+              </option>
+            ))}
           </select>
           <button type="submit">Ekle</button>
         </form>

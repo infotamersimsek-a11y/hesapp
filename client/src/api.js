@@ -53,6 +53,7 @@ export const api = {
   debtChat: (messages) => request('/ai/debt-chat', { method: 'POST', body: JSON.stringify({ messages }) }),
 
   creditCardsList: () => request('/credit-cards'),
+  creditCardsDebtPaid: (params) => request(`/credit-cards/debt-paid?${new URLSearchParams(params)}`),
   creditCardCreate: (body) => request('/credit-cards', { method: 'POST', body: JSON.stringify(body) }),
   creditCardUpdate: (id, body) => request(`/credit-cards/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   creditCardDelete: (id) => request(`/credit-cards/${id}`, { method: 'DELETE' }),

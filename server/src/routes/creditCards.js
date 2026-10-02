@@ -225,6 +225,57 @@ router.get('/', async (req, res) => {
   res.json(withCalc);
 });
 
+router.get('/debt-paid', async (req, res) => {
+  const { year, month } = req.query;
+  if (!year || !month) return res.status(400).json({ error: 'year and month required' });
+  const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
+  const nextMonth = Number(month) === 12 ? `${Number(year) + 1}-01-01` : `${year}-${String(Number(month) + 1).padStart(2, '0')}-01`;
+
+  const cardsRes = await pool.query('SELECT id, name, owner, debt_amount FROM credit_cards ORDER BY id');
+
+  // Tercih edilen: ayın başlangıcından önceki son kayıt (gerçek "ay başı" değeri)
+  const baselineRes = await pool.query(
+    `SELECT DISTINCT ON (credit_card_id) credit_card_id, amount, to_char(recorded_at, 'YYYY-MM-DD') AS recorded_date
+     FROM credit_card_debt_log
+     WHERE recorded_at < $1
+     ORDER BY credit_card_id, recorded_at DESC`,
+    [monthStart]
+  );
+  const baselineMap = new Map(baselineRes.rows.map((r) => [r.credit_card_id, { amount: Number(r.amount), date: r.recorded_date, isMonthStart: true }]));
+
+  // Yedek: ay başından önce hiç kayıt yoksa, ay içindeki İLK kaydı kullan (örn. kart bu ay eklendiyse)
+  const fallbackRes = await pool.query(
+    `SELECT DISTINCT ON (credit_card_id) credit_card_id, amount, to_char(recorded_at, 'YYYY-MM-DD') AS recorded_date
+     FROM credit_card_debt_log
+     WHERE recorded_at >= $1 AND recorded_at < $2
+     ORDER BY credit_card_id, recorded_at ASC`,
+    [monthStart, nextMonth]
+  );
+  for (const r of fallbackRes.rows) {
+    if (!baselineMap.has(r.credit_card_id)) {
+      baselineMap.set(r.credit_card_id, { amount: Number(r.amount), date: r.recorded_date, isMonthStart: false });
+    }
+  }
+
+  const byCard = cardsRes.rows
+    .filter((c) => baselineMap.has(c.id))
+    .map((c) => {
+      const currentDebt = Number(c.debt_amount);
+      const baseline = baselineMap.get(c.id);
+      return {
+        name: c.name,
+        owner: c.owner,
+        startDebt: baseline.amount,
+        startDate: baseline.date,
+        isMonthStart: baseline.isMonthStart,
+        currentDebt,
+        paid: Number((baseline.amount - currentDebt).toFixed(2)),
+      };
+    });
+  const totalPaid = Number(byCard.reduce((s, c) => s + c.paid, 0).toFixed(2));
+  res.json({ totalPaid, byCard });
+});
+
 router.put('/:id/defer', async (req, res) => {
   const { deferred } = req.body;
   const value = deferred ? currentYearMonth() : null;
