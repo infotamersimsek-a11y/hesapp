@@ -31,6 +31,7 @@ export async function generateMonthlyReportPdf({ year, month, shops }) {
   }
 
   const debtPaid = await api.creditCardsDebtPaid({ year, month });
+  const vendorDebtPaid = await api.vendorDebtPaid({ year, month });
 
   const doc = new jsPDF();
   doc.addFileToVFS('Arial.ttf', arialRegularBase64);
@@ -124,6 +125,34 @@ export async function generateMonthlyReportPdf({ year, month, shops }) {
       doc.setFontSize(8);
       doc.setTextColor(150, 150, 150);
       doc.text('* Bazı kartlar için ay başından önce kayıt yok, o kartın sistemdeki ilk kayıt tarihi baz alındı.', margin, y);
+      y += 6;
+    }
+    y += 6;
+  }
+
+  // Firma Borcu — Ay Başı / Şimdi (ne kadar ödendi)
+  if (vendorDebtPaid.byVendor.length > 0) {
+    sectionTitle(`Firma Borcu — Ay Başı / Şimdi (Toplam Ödenen: ${formatMoney(vendorDebtPaid.totalPaid)})`);
+    const vendorHasFallback = vendorDebtPaid.byVendor.some((v) => !v.isMonthStart);
+    autoTable(doc, {
+      ...tableDefaults,
+      startY: y,
+      head: [['Firma', 'Başlangıç Borcu', 'Şimdiki Borç', 'Ödenen']],
+      body: vendorDebtPaid.byVendor.map((v) => [
+        v.vendor_name,
+        v.isMonthStart ? formatMoney(v.startDebt) : `${formatMoney(v.startDebt)} (${dateFormatter.format(new Date(v.startDate))} itibarıyla)`,
+        formatMoney(v.currentDebt),
+        formatMoney(v.paid),
+      ]),
+      columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } },
+      styles: { ...tableDefaults.styles, fontSize: vendorHasFallback ? 9 : 10 },
+    });
+    y = doc.lastAutoTable.finalY + 4;
+    if (vendorHasFallback) {
+      doc.setFont('Arial', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text('* Bazı firmalar için ay başından önce kayıt yok, o firmanın sistemdeki ilk kayıt tarihi baz alındı.', margin, y);
       y += 6;
     }
     y += 6;

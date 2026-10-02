@@ -29,6 +29,54 @@ router.get('/', async (req, res) => {
   }));
 });
 
+router.get('/debt-paid', async (req, res) => {
+  const { year, month } = req.query;
+  if (!year || !month) return res.status(400).json({ error: 'year and month required' });
+  const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
+  const nextMonth = Number(month) === 12 ? `${Number(year) + 1}-01-01` : `${year}-${String(Number(month) + 1).padStart(2, '0')}-01`;
+
+  const vendorsRes = await pool.query('SELECT vendor_name, debt_amount FROM vendor_debt ORDER BY vendor_name');
+
+  const baselineRes = await pool.query(
+    `SELECT DISTINCT ON (vendor_name) vendor_name, amount, to_char(recorded_at, 'YYYY-MM-DD') AS recorded_date
+     FROM vendor_debt_log
+     WHERE recorded_at < $1
+     ORDER BY vendor_name, recorded_at DESC`,
+    [monthStart]
+  );
+  const baselineMap = new Map(baselineRes.rows.map((r) => [r.vendor_name, { amount: Number(r.amount), date: r.recorded_date, isMonthStart: true }]));
+
+  const fallbackRes = await pool.query(
+    `SELECT DISTINCT ON (vendor_name) vendor_name, amount, to_char(recorded_at, 'YYYY-MM-DD') AS recorded_date
+     FROM vendor_debt_log
+     WHERE recorded_at >= $1 AND recorded_at < $2
+     ORDER BY vendor_name, recorded_at ASC`,
+    [monthStart, nextMonth]
+  );
+  for (const r of fallbackRes.rows) {
+    if (!baselineMap.has(r.vendor_name)) {
+      baselineMap.set(r.vendor_name, { amount: Number(r.amount), date: r.recorded_date, isMonthStart: false });
+    }
+  }
+
+  const byVendor = vendorsRes.rows
+    .filter((v) => baselineMap.has(v.vendor_name))
+    .map((v) => {
+      const currentDebt = Number(v.debt_amount);
+      const baseline = baselineMap.get(v.vendor_name);
+      return {
+        vendor_name: v.vendor_name,
+        startDebt: baseline.amount,
+        startDate: baseline.date,
+        isMonthStart: baseline.isMonthStart,
+        currentDebt,
+        paid: Number((baseline.amount - currentDebt).toFixed(2)),
+      };
+    });
+  const totalPaid = Number(byVendor.reduce((s, v) => s + v.paid, 0).toFixed(2));
+  res.json({ totalPaid, byVendor });
+});
+
 router.put('/:vendor_name', async (req, res) => {
   const { debt_amount } = req.body;
   const vendorName = decodeURIComponent(req.params.vendor_name);

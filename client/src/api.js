@@ -64,6 +64,7 @@ export const api = {
 
   vendorDebtList: () => request('/vendor-debt'),
   vendorDebtUpdate: (vendorName, debt_amount) => request(`/vendor-debt/${encodeURIComponent(vendorName)}`, { method: 'PUT', body: JSON.stringify({ debt_amount }) }),
+  vendorDebtPaid: (params) => request(`/vendor-debt/debt-paid?${new URLSearchParams(params)}`),
 
   wasteLogList: (params) => request(`/waste-log?${new URLSearchParams(params)}`),
   wasteLogCreate: (body) => request('/waste-log', { method: 'POST', body: JSON.stringify(body) }),

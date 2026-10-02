@@ -91,7 +91,7 @@ function CardDetailsPhoto({ onRead }) {
 function DebtItem({ c, g, onDone, onDelete, onDefer }) {
   const [showDetail, setShowDetail] = useState(false);
   const limitPct = c.credit_limit ? Math.min(100, Math.max(0, Math.round((Number(c.debt_amount) / Number(c.credit_limit)) * 100))) : null;
-  const hasHistory = c.history.some((h) => h.delta != null) || c.recent_charges.length > 0;
+  const hasHistory = c.recent_charges.length > 0;
 
   return (
     <div className="debt-item">
@@ -137,23 +137,16 @@ function DebtItem({ c, g, onDone, onDelete, onDefer }) {
           <button type="button" className="detail-toggle" onClick={() => setShowDetail((v) => !v)}>
             {showDetail ? 'Geçmişi gizle ▲' : 'Geçmişi göster ▼'}
           </button>
-          {showDetail && (
+          {showDetail && c.recent_charges.length > 0 && (
             <div className="debt-history">
-              {c.history.filter((h) => h.delta != null).slice(0, 2).map((h, i) => (
-                <span key={i} className="hint">
-                  {h.delta > 0 ? `Ödeme: ${formatMoney(h.delta)}` : `Borç artışı: ${formatMoney(-h.delta)}`} — {formatDate(h.recorded_at)}
-                </span>
-              ))}
-              {c.recent_charges.length > 0 && (
-                <div className="recent-charges">
-                  <span className="hint">Son 3 gün bu karttan yapılan harcamalar:</span>
-                  {c.recent_charges.map((r, i) => (
-                    <span key={i} className="hint">
-                      {formatMoney(r.amount)} — {r.label}{r.note ? ` (${r.note})` : ''} — {formatDate(r.date)}
-                    </span>
-                  ))}
-                </div>
-              )}
+              <div className="recent-charges">
+                <span className="hint">Son 3 gün bu karttan yapılan harcamalar:</span>
+                {c.recent_charges.map((r, i) => (
+                  <span key={i} className="hint">
+                    {formatMoney(r.amount)} — {r.label}{r.note ? ` (${r.note})` : ''} — {formatDate(r.date)}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
         </>
