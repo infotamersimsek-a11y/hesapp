@@ -110,7 +110,7 @@ export async function generateMonthlyReportPdf({ year, month, shops }) {
       startY: y,
       head: [['Kart', 'Başlangıç Borcu', 'Şimdiki Borç', 'Ödenen']],
       body: debtPaid.byCard.map((c) => [
-        `${c.name} ${c.owner}`,
+        `${c.name} ${c.owner} — ${c.type}${c.last4 ? ` ••••${c.last4}` : ''}`,
         c.isMonthStart ? formatMoney(c.startDebt) : `${formatMoney(c.startDebt)} (${dateFormatter.format(new Date(c.startDate))} itibarıyla)`,
         formatMoney(c.currentDebt),
         formatMoney(c.paid),

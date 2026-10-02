@@ -231,7 +231,7 @@ router.get('/debt-paid', async (req, res) => {
   const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
   const nextMonth = Number(month) === 12 ? `${Number(year) + 1}-01-01` : `${year}-${String(Number(month) + 1).padStart(2, '0')}-01`;
 
-  const cardsRes = await pool.query('SELECT id, name, owner, debt_amount FROM credit_cards ORDER BY id');
+  const cardsRes = await pool.query('SELECT id, name, owner, type, last4, debt_amount FROM credit_cards ORDER BY id');
 
   // Tercih edilen: ayın başlangıcından önceki son kayıt (gerçek "ay başı" değeri)
   const baselineRes = await pool.query(
@@ -265,6 +265,8 @@ router.get('/debt-paid', async (req, res) => {
       return {
         name: c.name,
         owner: c.owner,
+        type: c.type,
+        last4: c.last4,
         startDebt: baseline.amount,
         startDate: baseline.date,
         isMonthStart: baseline.isMonthStart,
