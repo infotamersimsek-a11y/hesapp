@@ -160,6 +160,18 @@ h1 {
   align-items: center;
 }
 
+.logout-link {
+  margin-left: auto;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--text-muted, #7a7a7a);
+  background: none;
+  border: none;
+  padding: 6px 4px;
+  cursor: pointer;
+}
+
 .brand-mark {
   display: inline-flex;
   align-items: center;

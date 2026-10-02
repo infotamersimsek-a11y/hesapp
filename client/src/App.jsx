@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from './api';
-import { getToken, getDefaultShop } from './auth';
+import { getToken, getDefaultShop, clearToken } from './auth';
 import Login from './Login';
 import DailyTab from './DailyTab';
 import MonthlyTab from './MonthlyTab';
@@ -24,7 +24,10 @@ export default function App() {
 
   return (
     <div className="app">
-      <h1><span className="brand-mark">₺</span>Gelir Gider Takip</h1>
+      <h1>
+        <span className="brand-mark">₺</span>Gelir Gider Takip
+        <button type="button" className="logout-link" onClick={() => { clearToken(); setAuthed(false); }}>Çıkış Yap</button>
+      </h1>
       <nav className="tabs">
         <button className={tab === 'daily' ? 'active' : ''} onClick={() => setTab('daily')}>Günlük</button>
         <button className={tab === 'monthly' ? 'active' : ''} onClick={() => setTab('monthly')}>Aylık</button>

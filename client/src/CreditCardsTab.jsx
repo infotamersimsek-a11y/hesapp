@@ -3,6 +3,7 @@ import { api } from './api';
 import { useLiveRefresh } from './useLiveRefresh';
 import { formatMoney } from './format';
 import { getBankColor, getContrastText, TURKISH_BANKS, SUPPLIER_COLORS, getSupplierColor } from './bankColors';
+import { getDefaultShop } from './auth';
 
 const dateFormatter = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
 const formatDate = (isoDate) => dateFormatter.format(new Date(isoDate));
@@ -20,6 +21,39 @@ function groupCards(cards) {
     map.get(key).items.push(c);
   }
   return Array.from(map.values());
+}
+
+function BalancePhoto({ onRead }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const onFile = async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append('image', file);
+      const result = await api.cardBalance(form);
+      onRead(String(result.draft.amount ?? ''));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <span className="balance-photo">
+      <label className="file-btn small">
+        {busy ? '...' : '📷'}
+        <input type="file" accept="image/*" onChange={onFile} disabled={busy} hidden />
+      </label>
+      {error && <span className="bad"> {error}</span>}
+    </span>
+  );
 }
 
 function CardDetailsPhoto({ onRead }) {
@@ -119,7 +153,41 @@ function DebtItem({ c, g, onDone, onDelete, onDefer }) {
         </>
       )}
 
+      {getDefaultShop() === 'Çıtır Tatlı' && <DebtActions card={c} onDone={onDone} />}
     </div>
+  );
+}
+
+function DebtActions({ card, onDone }) {
+  const [amount, setAmount] = useState(card.debt_amount);
+
+  const save = async (newDebt) => {
+    await api.creditCardUpdate(card.id, {
+      name: card.name,
+      owner: card.owner,
+      type: card.type,
+      last4: card.last4,
+      credit_limit: card.credit_limit,
+      debt_amount: newDebt,
+      statement_day: card.statement_day,
+      due_day: card.due_day,
+      note: card.note,
+    });
+    onDone();
+  };
+
+  const setNewTotal = async (e) => {
+    e.preventDefault();
+    if (amount === '') return;
+    await save(amount);
+  };
+
+  return (
+    <form className="inline-update" onSubmit={setNewTotal}>
+      <input type="number" step="0.01" placeholder="Tutar" value={amount} onChange={(e) => setAmount(e.target.value)} />
+      <button type="submit" className="debt-update-btn">Borcu Güncelle</button>
+      <BalancePhoto onRead={setAmount} />
+    </form>
   );
 }
 
