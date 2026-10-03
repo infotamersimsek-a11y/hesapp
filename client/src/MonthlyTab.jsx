@@ -6,7 +6,7 @@ import { generateMonthlyReportPdf } from './pdfReport';
 import { buildMonthDays, analyzeDaySet, analyzeMonthDays } from './monthDays';
 
 const now = new Date();
-const FIXED_EXPENSE_TYPES = ['Kira', 'Elektrik', 'Su', 'Doğalgaz', 'Ev Kirası', 'Ambalaj', 'Lale Gıda', 'Örgün Gıda', 'Coca-Cola', 'Diğer'];
+const FIXED_EXPENSE_TYPES = ['Kira', 'Elektrik', 'Su', 'Doğalgaz', 'Ev Kirası', 'Ambalaj', 'Lale Gıda', 'Örgün Gıda', 'Coca-Cola', 'Alpedo', 'Fıstıkçı', 'Tüpçü', 'Taş Kadayıfçı', 'Kadayıfçı', 'Diğer'];
 const dateFormatter = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
 
 function mergeByKey(lists, key) {
