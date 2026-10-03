@@ -652,4 +652,20 @@ Neon/Groq olmadan hızlı görsel test için: `cd server && npm run preview` (be
   - `client/src/api.js`: `cardBalance` helper'ı geri eklendi. `server/src/routes/ai.js`: `POST /ai/card-balance` route'u geri eklendi.
   - Aynı anda kullanıcı farklı bir ihtiyaç daha belirtti: "Telefonun ana ekranına kaydettiğim kısayolda giriş tek sefer oluyor, giriş/çıkış olsa hesaplar arasında geçiş yaparım" — iki farklı şifreyle (Tamer/Ramazan) aynı cihazdan geçiş yapabilmek için `client/src/App.jsx`'e başlıkta sağa yaslı "Çıkış Yap" butonu eklendi (`clearToken()` + `setAuthed(false)` ile login ekranına dönüyor, zaten var olan `auth.js`'teki `clearToken` kullanıldı). `client/src/App.css`'e `.logout-link` stili eklendi.
 - Test edildi: Playwright ile Tamer girişinde (142536) 14 "Borcu Güncelle" butonunun göründüğü, Ramazan girişinde (142536789) hiçbirinin görünmediği, ve "Çıkış Yap"a basınca login ekranına dönüldüğü doğrulandı (ilk denemede HMR gecikmesi yüzünden yanlış-negatif çıktı, biraz bekleyip tekrar test edilince doğru sonuç alındı — gerçek bug değildi).
-- Build temiz, commit+push edildi, Vercel otomatik deploy etti, canlıda doğrulandı.
+- Build temiz, commit+push edildi (`ac6e158`), Vercel otomatik deploy etti, canlıda doğrulandı.
+
+## Sabit Gider Listesine Yeni Firmalar + Kredi Kartları'ndaki Sabit Giderler Kartı Kaldırıldı
+
+- 2026-10-02 (aynı gün, devam): Kullanıcı iki ayrı istek verdi:
+  1. "Sabit giderlere Alpedo, Fıstıkçı, Tüpçü, Taş Kadayıfçı, Kadayıfçı firmaları da ekleyelim" — `client/src/MonthlyTab.jsx`'teki `FIXED_EXPENSE_TYPES` listesine bu 5 firma eklendi (Alpedo zaten `bankColors.js`'teki `SUPPLIER_COLORS`'ta vardı ama Sabit Gider Ekle dropdown'ında yoktu, her seferinde "Diğer" ile elle yazılıyordu).
+  2. "Kredi kartları kısmında ekstradan 'Sabit Giderler (ay)' diye bir alan var, onu çıkaralım, gerek yok" — `client/src/CreditCardsTab.jsx`'teki `FixedExpenseSummary` bileşeni (bir önceki oturumda boş-ay durumu düzeltilmişti) komple kaldırıldı, ilişkili `fixedExpenses` state'i ve `monthlyExpenseList` fetch'i de temizlendi.
+- Test edildi: Playwright ile Kredi Kartları sekmesinde "Sabit Giderler" başlığının artık hiç görünmediği, Aylık sekmesindeki Sabit Gider Ekle dropdown'ında 5 yeni firmanın listelendiği doğrulandı. Build temiz.
+- Build temiz, commit+push edildi (`0ad247b`), Vercel otomatik deploy etti, canlıda doğrulandı.
+
+## Haftalık Özet Raporu (PDF) Eklendi
+
+- 2026-10-02/03: Kullanıcı aylık borç takibinin mantığını onayladıktan sonra "mesela haftalık PDF aldığımda da aynı şekilde çalışsın" dedi; `AskUserQuestion` ile netleştirildi — "Haftalık PDF da ekle" seçildi.
+  - **Backend**: `server/src/routes/summary.js`'e `GET /summary/weekly?shop_id=&from=&to=` eklendi — aylık endpoint'in tarih-aralığı versiyonu (sabit gider/`monthly_expense` dahil değil, çünkü sabit giderler aya özgü, haftaya bölünmüyor). `server/src/routes/creditCards.js` ve `vendorDebt.js`'teki `/debt-paid` route'ları artık `year&month` yanında `since=YYYY-MM-DD` parametresini de kabul ediyor — baseline "dönem başından önceki son kayıt", üst sınır `since` verilince "yarın" (bugüne kadarki tüm kayıtları yedek pencereye dahil etmek için).
+  - **Frontend**: `client/src/pdfReport.js` yeniden düzenlendi — ortak gövde (`renderReportPdf`) tek bir yerde, hem `generateMonthlyReportPdf` hem yeni `generateWeeklyReportPdf` bunu çağırıyor (kod tekrarı yok). Haftalık raporda "Sabit Gider — Firma Bazlı" bölümü yok (aylık kavram), "Veri Girilmeyen Günler" o 7 güne göre hesaplanıyor. `client/src/MonthlyTab.jsx`'e hafta seçici (Pazartesi bazlı, ◀/▶ ile gezinme, varsayılan bu haftanın pazartesi) + "📄 Haftalık PDF İndir" butonu eklendi.
+- Test edildi: Playwright ile haftalık PDF indirildi, görsel olarak kontrol edildi (Türkçe karakterler, "Hafta Başı / Şimdi" tabloları, yedek-tarih dipnotu, veri girilmeyen günler, kategori/harcama/imha bölümleri hepsi doğru). Önceki/sonraki hafta gezinmesi doğrulandı. Canlıda (`hesapalr.vercel.app`) `/api/summary/weekly` ve `/api/credit-cards/debt-paid?since=` 200 döndü.
+- Build temiz, commit+push edildi (`ba21c2d`), Vercel otomatik deploy etti, canlıda doğrulandı.
