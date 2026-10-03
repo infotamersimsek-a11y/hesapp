@@ -25,6 +25,7 @@ const isFreeEditDate = (isoDate) => FREE_EDIT_DATES.includes(isoDate.slice(0, 10
 const DAYS_PER_PAGE = 2;
 const EXPENSE_CATEGORIES = ['Yemek', 'Temizlik', 'Kişisel Giderler', 'Ekstra Giderler', 'Ürün Alımı', 'Kredi Kartı Ödemesi', 'Diğer'];
 const CARD_PAYMENT_CATEGORY = 'Kredi Kartı Ödemesi';
+const PERSONAL_EXPENSE_CATEGORY = 'Kişisel Giderler';
 const CARD_OWNER_SHOP = { Tamer: 'Çıtır Tatlı', Ramazan: 'Hacıoğulları' };
 const WASTE_CATEGORIES = ['Sıcak Tatlı', 'Cevizli Baklava-Kadayıf', 'Fıstıklı Baklava-Kadayıf', 'Diğer'];
 
@@ -229,6 +230,7 @@ export default function DailyTab({ shops, defaultShopName }) {
   const [expenseNote, setExpenseNote] = useState('');
   const [expenseCardId, setExpenseCardId] = useState('');
   const [cashSource, setCashSource] = useState('');
+  const [expensePerson, setExpensePerson] = useState('');
   const [allIncomes, setAllIncomes] = useState([]);
   const [allExpenses, setAllExpenses] = useState([]);
   const [cards, setCards] = useState([]);
@@ -281,6 +283,10 @@ export default function DailyTab({ shops, defaultShopName }) {
       setError('Kaynak seç: Günlük Gelirden mi, Var Olan Bütçeden mi?');
       return;
     }
+    if (expenseCategory === PERSONAL_EXPENSE_CATEGORY && !expensePerson) {
+      setError('Kişisel gider için Tamer mi Ramazan mı seçmelisin');
+      return;
+    }
     setError(null);
     let effectiveShopId = shopId;
     if (expenseCategory === CARD_PAYMENT_CATEGORY && expenseCardId) {
@@ -298,12 +304,14 @@ export default function DailyTab({ shops, defaultShopName }) {
         note: expenseNote,
         credit_card_id: expenseCardId || null,
         cash_source: needsCashSource ? cashSource : null,
+        person: expenseCategory === PERSONAL_EXPENSE_CATEGORY ? expensePerson : null,
         admin_password: isBackdated ? adminPassword : undefined,
       });
       setExpenseAmount('');
       setExpenseNote('');
       setExpenseCardId('');
       setCashSource('');
+      setExpensePerson('');
       if (effectiveShopId !== shopId) {
         const targetShop = shops.find((s) => s.id === effectiveShopId);
         alert(`Ödeme ${targetShop?.name ?? 'ilgili dükkana'} kaydedildi (kart sahibine göre otomatik)`);
@@ -376,6 +384,13 @@ export default function DailyTab({ shops, defaultShopName }) {
             </select>
             <input type="number" step="0.01" placeholder="Tutar" value={expenseAmount} onChange={(e) => setExpenseAmount(e.target.value)} required />
             <input type="text" placeholder="Not (opsiyonel)" value={expenseNote} onChange={(e) => setExpenseNote(e.target.value)} />
+            {expenseCategory === PERSONAL_EXPENSE_CATEGORY && (
+              <select value={expensePerson} onChange={(e) => setExpensePerson(e.target.value)} required>
+                <option value="">Kime ait?</option>
+                <option value="Tamer">Tamer</option>
+                <option value="Ramazan">Ramazan</option>
+              </select>
+            )}
             <select
               value={expenseCardId}
               onChange={(e) => { setExpenseCardId(e.target.value); if (e.target.value && expenseCategory !== CARD_PAYMENT_CATEGORY) setCashSource(''); }}
@@ -473,11 +488,11 @@ export default function DailyTab({ shops, defaultShopName }) {
                     const card = cards.find((c) => c.id === x.credit_card_id);
                     return (
                       <li key={x.id}>
-                        {x.category}: {Number(x.amount).toFixed(2)} ₺ {x.note ? `— ${x.note}` : ''} {card ? <span className="tag-pos">{card.name} {card.owner}{card.last4 ? ` ••••${card.last4}` : ''}</span> : ''} {x.cash_source === 'butce' ? <span className="tag-butce">Bütçe</span> : ''}
+                        {x.category}: {Number(x.amount).toFixed(2)} ₺ {x.note ? `— ${x.note}` : ''} {card ? <span className="tag-pos">{card.name} {card.owner}{card.last4 ? ` ••••${card.last4}` : ''}</span> : ''} {x.person ? <span className="tag-pos">{x.person}</span> : ''} {x.cash_source === 'butce' ? <span className="tag-butce">Bütçe</span> : ''}
                         <AmountEditor
                           item={x}
                           onSave={(amount, admin_password) => api.dailyExpenseUpdate(x.id, {
-                            shop_id: x.shop_id, date: x.date.slice(0, 10), category: x.category, amount, note: x.note, credit_card_id: x.credit_card_id, cash_source: x.cash_source, admin_password,
+                            shop_id: x.shop_id, date: x.date.slice(0, 10), category: x.category, amount, note: x.note, credit_card_id: x.credit_card_id, cash_source: x.cash_source, person: x.person, admin_password,
                           }).then(reload)}
                         />
                         {editable && <button onClick={() => api.dailyExpenseDelete(x.id).then(reload)}>Sil</button>}

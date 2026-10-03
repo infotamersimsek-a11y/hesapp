@@ -44,7 +44,8 @@ CREATE TABLE IF NOT EXISTS daily_expense (
   amount NUMERIC(12,2) NOT NULL,
   note TEXT,
   credit_card_id INTEGER REFERENCES credit_cards(id) ON DELETE SET NULL,
-  cash_source TEXT CHECK (cash_source IN ('gunluk_gelir', 'butce'))
+  cash_source TEXT CHECK (cash_source IN ('gunluk_gelir', 'butce')),
+  person TEXT CHECK (person IN ('Tamer', 'Ramazan'))
 );
 
 CREATE TABLE IF NOT EXISTS budget_transaction (

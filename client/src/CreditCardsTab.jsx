@@ -96,6 +96,14 @@ function DebtItem({ c, g, onDone, onDelete, onDefer }) {
 
   return (
     <div className="debt-item">
+      {c.reconciliation?.flagged && (
+        <div
+          className="reconciliation-banner"
+          title={`Ay başından bu yana borç ${formatMoney(c.reconciliation.card_spend_estimate)} değişti, kayıtlı işlemler ${formatMoney(c.reconciliation.recorded_expense_this_month)} — fark ${formatMoney(c.reconciliation.discrepancy)}`}
+        >
+          ⚠ Tutarsız: {formatMoney(c.reconciliation.discrepancy)} fark
+        </div>
+      )}
       <div className="debt-item-top">
         <span className="debt-item-type">{c.type}{c.last4 ? ` •••• ${c.last4}` : ''}</span>
         <div className="debt-item-flags">
@@ -387,9 +395,37 @@ function VendorCards({ vendors, onDone }) {
   );
 }
 
+const personalExpenseMonthFormatter = new Intl.DateTimeFormat('tr-TR', { month: 'long', year: 'numeric' });
+
+function PersonalExpenseBoxes({ personalExpense }) {
+  const monthLabel = personalExpenseMonthFormatter.format(new Date());
+  const totalFor = (owner) => personalExpense.find((p) => p.person === owner)?.total ?? 0;
+  return (
+    <div>
+      <h3>Kişisel Giderler ({monthLabel})</h3>
+      <div className="card-list">
+        {OWNERS.map((owner) => (
+          <div key={owner} className="credit-card" style={{ background: '#455A64', color: '#ffffff', '--overlay-weak': 'rgba(255,255,255,0.14)', '--overlay-strong': 'rgba(255,255,255,0.3)' }}>
+            <div className="credit-card-header">
+              <strong className="bank-name">{owner}</strong>
+            </div>
+            <div className="debt-item">
+              <div className="debt-hero">
+                <span className="debt-hero-label">Bu Ay Toplam</span>
+                <span className="debt-hero-value">{formatMoney(totalFor(owner))}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function CreditCardsTab() {
   const [cards, setCards] = useState([]);
   const [vendors, setVendors] = useState([]);
+  const [personalExpense, setPersonalExpense] = useState([]);
   const [bankChoice, setBankChoice] = useState(TURKISH_BANKS[0]);
   const [bankCustom, setBankCustom] = useState('');
   const [owner, setOwner] = useState(OWNERS[0]);
@@ -406,6 +442,8 @@ export default function CreditCardsTab() {
   const reload = async () => {
     setCards(await api.creditCardsList());
     setVendors(await api.vendorDebtList());
+    const now = new Date();
+    setPersonalExpense(await api.dailyExpensePersonalSummary({ year: now.getFullYear(), month: now.getMonth() + 1 }));
   };
 
   useEffect(() => { reload(); }, []);
@@ -572,6 +610,8 @@ export default function CreditCardsTab() {
       })}
 
       <VendorCards vendors={vendors} onDone={reload} />
+
+      <PersonalExpenseBoxes personalExpense={personalExpense} />
 
       <DebtAdvisor cards={cards} vendors={vendors} />
     </div>

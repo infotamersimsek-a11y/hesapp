@@ -32,12 +32,25 @@ router.get('/', async (req, res) => {
   res.json(rows);
 });
 
+router.get('/personal-summary', async (req, res) => {
+  const { year, month } = req.query;
+  if (!year || !month) return res.status(400).json({ error: 'year and month required' });
+  const { rows } = await pool.query(
+    `SELECT person, COALESCE(SUM(amount),0) AS total FROM daily_expense
+     WHERE category='Kişisel Giderler' AND person IS NOT NULL
+     AND EXTRACT(YEAR FROM date)=$1 AND EXTRACT(MONTH FROM date)=$2
+     GROUP BY person`,
+    [year, month]
+  );
+  res.json(rows.map((r) => ({ person: r.person, total: Number(r.total) })));
+});
+
 router.post('/', async (req, res) => {
-  const { shop_id, date, category, amount, note, credit_card_id, cash_source, admin_password } = req.body;
+  const { shop_id, date, category, amount, note, credit_card_id, cash_source, person, admin_password } = req.body;
   assertDateAllowed(date, admin_password, isTrustedAdmin(req));
   const { rows } = await pool.query(
-    `INSERT INTO daily_expense (shop_id, date, category, amount, note, credit_card_id, cash_source) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-    [shop_id, date, category, amount, note ?? null, credit_card_id || null, cash_source || null]
+    `INSERT INTO daily_expense (shop_id, date, category, amount, note, credit_card_id, cash_source, person) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+    [shop_id, date, category, amount, note ?? null, credit_card_id || null, cash_source || null, person || null]
   );
   if (credit_card_id) await adjustCardDebt(credit_card_id, debtDeltaFor(category, amount));
   if (cash_source === 'butce') {
@@ -50,12 +63,12 @@ router.post('/', async (req, res) => {
 });
 
 router.put('/:id', async (req, res) => {
-  const { shop_id, date, category, amount, note, credit_card_id, cash_source, admin_password } = req.body;
+  const { shop_id, date, category, amount, note, credit_card_id, cash_source, person, admin_password } = req.body;
   assertDateAllowed(date, admin_password, isTrustedAdmin(req));
   const prev = await pool.query('SELECT amount, category, credit_card_id FROM daily_expense WHERE id=$1', [req.params.id]);
   const { rows } = await pool.query(
-    `UPDATE daily_expense SET shop_id=$1, date=$2, category=$3, amount=$4, note=$5, credit_card_id=$6, cash_source=$7 WHERE id=$8 RETURNING *`,
-    [shop_id, date, category, amount, note ?? null, credit_card_id || null, cash_source || null, req.params.id]
+    `UPDATE daily_expense SET shop_id=$1, date=$2, category=$3, amount=$4, note=$5, credit_card_id=$6, cash_source=$7, person=$8 WHERE id=$9 RETURNING *`,
+    [shop_id, date, category, amount, note ?? null, credit_card_id || null, cash_source || null, person || null, req.params.id]
   );
   if (!rows.length) return res.status(404).json({ error: 'not found' });
   if (prev.rows[0]?.credit_card_id) await adjustCardDebt(prev.rows[0].credit_card_id, -debtDeltaFor(prev.rows[0].category, prev.rows[0].amount));

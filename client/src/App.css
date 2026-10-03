@@ -646,6 +646,19 @@ section form button:active { transform: scale(0.98); }
   border-radius: var(--radius-pill);
 }
 
+.reconciliation-banner {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--bad);
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .day-card-header {
   display: flex;
   justify-content: space-between;

@@ -35,6 +35,7 @@ export const api = {
   dailyIncomeDelete: (id) => request(`/daily-income/${id}`, { method: 'DELETE' }),
 
   dailyExpenseList: (params) => request(`/daily-expense?${new URLSearchParams(params)}`),
+  dailyExpensePersonalSummary: (params) => request(`/daily-expense/personal-summary?${new URLSearchParams(params)}`),
   dailyExpenseCreate: (body) => request('/daily-expense', { method: 'POST', body: JSON.stringify(body) }),
   dailyExpenseUpdate: (id, body) => request(`/daily-expense/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   dailyExpenseDelete: (id) => request(`/daily-expense/${id}`, { method: 'DELETE' }),
