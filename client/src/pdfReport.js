@@ -8,37 +8,36 @@ const generatedFormatter = new Intl.DateTimeFormat('tr-TR', { dateStyle: 'long',
 
 const BRAND = [14, 107, 92];
 
-export async function generateMonthlyReportPdf({ year, month, shops }) {
+async function loadPdfLibs() {
   const [{ jsPDF }, { default: autoTable }, { arialRegularBase64 }, { arialBoldBase64 }] = await Promise.all([
     import('jspdf'),
     import('jspdf-autotable'),
     import('./fonts/arialRegularBase64.js'),
     import('./fonts/arialBoldBase64.js'),
   ]);
-
-  const hacId = shops.find((s) => s.name === 'Hacıoğulları')?.id;
-
-  const [combined, ...perShop] = await Promise.all([
-    api.monthlySummary({ year, month }),
-    ...shops.map((s) => api.monthlySummary({ shop_id: s.id, year, month })),
-  ]);
-
-  let waste = [];
-  if (hacId) {
-    const daysInMonth = new Date(year, month, 0).getDate();
-    const monthStr = String(month).padStart(2, '0');
-    waste = await api.wasteLogList({ shop_id: hacId, from: `${year}-${monthStr}-01`, to: `${year}-${monthStr}-${String(daysInMonth).padStart(2, '0')}` });
-  }
-
-  const debtPaid = await api.creditCardsDebtPaid({ year, month });
-  const vendorDebtPaid = await api.vendorDebtPaid({ year, month });
-
   const doc = new jsPDF();
   doc.addFileToVFS('Arial.ttf', arialRegularBase64);
   doc.addFont('Arial.ttf', 'Arial', 'normal');
   doc.addFileToVFS('Arial-Bold.ttf', arialBoldBase64);
   doc.addFont('Arial-Bold.ttf', 'Arial', 'bold');
   doc.setFont('Arial', 'normal');
+  return { doc, autoTable };
+}
+
+async function renderReportPdf({
+  titleLine2,
+  filename,
+  combined,
+  perShop,
+  shops,
+  waste,
+  debtPaid,
+  vendorDebtPaid,
+  debtPeriodLabel,
+  missingByShop,
+  includeVendorExpenseSection,
+}) {
+  const { doc, autoTable } = await loadPdfLibs();
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -77,7 +76,7 @@ export async function generateMonthlyReportPdf({ year, month, shops }) {
   y += 8;
   doc.setFontSize(13);
   doc.setTextColor(30, 30, 30);
-  doc.text(`Aylık Özet Raporu — ${monthYearFormatter.format(new Date(year, month - 1, 1))}`, margin, y);
+  doc.text(titleLine2, margin, y);
   y += 7;
   doc.setFont('Arial', 'normal');
   doc.setFontSize(9);
@@ -102,9 +101,9 @@ export async function generateMonthlyReportPdf({ year, month, shops }) {
   });
   y = doc.lastAutoTable.finalY + 10;
 
-  // Kart Borcu — Ay Başı / Şimdi (ne kadar ödendi)
+  // Kart Borcu — Dönem Başı / Şimdi (ne kadar ödendi)
   if (debtPaid.byCard.length > 0) {
-    sectionTitle(`Kredi Kartı Borcu — Ay Başı / Şimdi (Toplam Ödenen: ${formatMoney(debtPaid.totalPaid)})`);
+    sectionTitle(`Kredi Kartı Borcu — ${debtPeriodLabel} (Toplam Ödenen: ${formatMoney(debtPaid.totalPaid)})`);
     const hasFallback = debtPaid.byCard.some((c) => !c.isMonthStart);
     autoTable(doc, {
       ...tableDefaults,
@@ -124,15 +123,15 @@ export async function generateMonthlyReportPdf({ year, month, shops }) {
       doc.setFont('Arial', 'normal');
       doc.setFontSize(8);
       doc.setTextColor(150, 150, 150);
-      doc.text('* Bazı kartlar için ay başından önce kayıt yok, o kartın sistemdeki ilk kayıt tarihi baz alındı.', margin, y);
+      doc.text('* Bazı kartlar için dönem başından önce kayıt yok, o kartın sistemdeki ilk kayıt tarihi baz alındı.', margin, y);
       y += 6;
     }
     y += 6;
   }
 
-  // Firma Borcu — Ay Başı / Şimdi (ne kadar ödendi)
+  // Firma Borcu — Dönem Başı / Şimdi (ne kadar ödendi)
   if (vendorDebtPaid.byVendor.length > 0) {
-    sectionTitle(`Firma Borcu — Ay Başı / Şimdi (Toplam Ödenen: ${formatMoney(vendorDebtPaid.totalPaid)})`);
+    sectionTitle(`Firma Borcu — ${debtPeriodLabel} (Toplam Ödenen: ${formatMoney(vendorDebtPaid.totalPaid)})`);
     const vendorHasFallback = vendorDebtPaid.byVendor.some((v) => !v.isMonthStart);
     autoTable(doc, {
       ...tableDefaults,
@@ -152,17 +151,13 @@ export async function generateMonthlyReportPdf({ year, month, shops }) {
       doc.setFont('Arial', 'normal');
       doc.setFontSize(8);
       doc.setTextColor(150, 150, 150);
-      doc.text('* Bazı firmalar için ay başından önce kayıt yok, o firmanın sistemdeki ilk kayıt tarihi baz alındı.', margin, y);
+      doc.text('* Bazı firmalar için dönem başından önce kayıt yok, o firmanın sistemdeki ilk kayıt tarihi baz alındı.', margin, y);
       y += 6;
     }
     y += 6;
   }
 
   // Veri Girilmeyen Günler (dükkan bazlı eksik gün tespiti)
-  const missingByShop = shops.map((s, i) => {
-    const { missingDates } = analyzeMonthDays(perShop[i].dailyIncome, year, month, s.name === 'Hacıoğulları');
-    return { shop: s.name, missingDates };
-  });
   if (missingByShop.some((m) => m.missingDates.length > 0)) {
     sectionTitle('Veri Girilmeyen Günler');
     autoTable(doc, {
@@ -191,8 +186,8 @@ export async function generateMonthlyReportPdf({ year, month, shops }) {
     y = doc.lastAutoTable.finalY + 10;
   }
 
-  // Sabit Gider — Firma Bazlı
-  if (combined.expenseByVendor.length > 0) {
+  // Sabit Gider — Firma Bazlı (sadece aylık raporda; sabit giderler haftalık değil)
+  if (includeVendorExpenseSection && combined.expenseByVendor?.length > 0) {
     sectionTitle('Sabit Gider — Firma Bazlı');
     autoTable(doc, {
       ...tableDefaults,
@@ -253,5 +248,95 @@ export async function generateMonthlyReportPdf({ year, month, shops }) {
     doc.text(`Sayfa ${i} / ${pageCount}`, pageWidth - margin, pageHeight - 8, { align: 'right' });
   }
 
-  doc.save(`ozet-rapor-${year}-${String(month).padStart(2, '0')}.pdf`);
+  doc.save(filename);
+}
+
+export async function generateMonthlyReportPdf({ year, month, shops }) {
+  const hacId = shops.find((s) => s.name === 'Hacıoğulları')?.id;
+
+  const [combined, ...perShop] = await Promise.all([
+    api.monthlySummary({ year, month }),
+    ...shops.map((s) => api.monthlySummary({ shop_id: s.id, year, month })),
+  ]);
+
+  let waste = [];
+  if (hacId) {
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const monthStr = String(month).padStart(2, '0');
+    waste = await api.wasteLogList({ shop_id: hacId, from: `${year}-${monthStr}-01`, to: `${year}-${monthStr}-${String(daysInMonth).padStart(2, '0')}` });
+  }
+
+  const debtPaid = await api.creditCardsDebtPaid({ year, month });
+  const vendorDebtPaid = await api.vendorDebtPaid({ year, month });
+
+  const missingByShop = shops.map((s, i) => {
+    const { missingDates } = analyzeMonthDays(perShop[i].dailyIncome, year, month, s.name === 'Hacıoğulları');
+    return { shop: s.name, missingDates };
+  });
+
+  await renderReportPdf({
+    titleLine2: `Aylık Özet Raporu — ${monthYearFormatter.format(new Date(year, month - 1, 1))}`,
+    filename: `ozet-rapor-${year}-${String(month).padStart(2, '0')}.pdf`,
+    combined,
+    perShop,
+    shops,
+    waste,
+    debtPaid,
+    vendorDebtPaid,
+    debtPeriodLabel: 'Ay Başı / Şimdi',
+    missingByShop,
+    includeVendorExpenseSection: true,
+  });
+}
+
+export async function generateWeeklyReportPdf({ weekStart, shops }) {
+  const hacId = shops.find((s) => s.name === 'Hacıoğulları')?.id;
+  const start = new Date(weekStart + 'T00:00:00');
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7);
+  const toStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const from = toStr(start);
+  const to = toStr(end);
+  const lastDay = new Date(end);
+  lastDay.setDate(lastDay.getDate() - 1);
+
+  const [combined, ...perShop] = await Promise.all([
+    api.weeklySummary({ from, to }),
+    ...shops.map((s) => api.weeklySummary({ shop_id: s.id, from, to })),
+  ]);
+
+  let waste = [];
+  if (hacId) {
+    waste = await api.wasteLogList({ shop_id: hacId, from, to });
+  }
+
+  const debtPaid = await api.creditCardsDebtPaid({ since: from });
+  const vendorDebtPaid = await api.vendorDebtPaid({ since: from });
+
+  const missingByShop = shops.map((s, i) => {
+    const byDate = new Map(perShop[i].dailyIncome.map((r) => [r.date, r.total]));
+    const missingDates = [];
+    for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
+      const isHac = s.name === 'Hacıoğulları';
+      const isSunday = d.getDay() === 0;
+      if (isHac && isSunday) continue;
+      const ds = toStr(d);
+      if (!byDate.has(ds) || Number(byDate.get(ds)) === 0) missingDates.push(ds);
+    }
+    return { shop: s.name, missingDates };
+  });
+
+  await renderReportPdf({
+    titleLine2: `Haftalık Özet Raporu — ${dateFormatter.format(start)} - ${dateFormatter.format(lastDay)}`,
+    filename: `ozet-rapor-hafta-${from}.pdf`,
+    combined,
+    perShop,
+    shops,
+    waste,
+    debtPaid,
+    vendorDebtPaid,
+    debtPeriodLabel: 'Hafta Başı / Şimdi',
+    missingByShop,
+    includeVendorExpenseSection: false,
+  });
 }

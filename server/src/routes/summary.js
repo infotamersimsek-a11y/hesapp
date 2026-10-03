@@ -123,4 +123,60 @@ router.get('/monthly', async (req, res) => {
   });
 });
 
+router.get('/weekly', async (req, res) => {
+  const { shop_id, from, to } = req.query;
+  if (!from || !to) return res.status(400).json({ error: 'from and to required' });
+
+  const params = [from, to];
+  let shopFilter = '';
+  if (shop_id) {
+    params.push(shop_id);
+    shopFilter = `AND shop_id = $${params.length}`;
+  }
+
+  const income = await pool.query(
+    `SELECT method, COALESCE(SUM(amount),0) AS total FROM daily_income
+     WHERE date>=$1 AND date<$2 ${shopFilter} GROUP BY method`,
+    params
+  );
+  const expense = await pool.query(
+    `SELECT COALESCE(SUM(amount),0) AS total FROM daily_expense WHERE date>=$1 AND date<$2 ${shopFilter}`,
+    params
+  );
+  const byCategory = await pool.query(
+    `SELECT category, COALESCE(SUM(amount),0) AS total FROM daily_expense
+     WHERE date>=$1 AND date<$2 ${shopFilter}
+     GROUP BY category ORDER BY total DESC`,
+    params
+  );
+  const byDate = await pool.query(
+    `SELECT to_char(date, 'YYYY-MM-DD') AS date, COALESCE(SUM(amount),0) AS total FROM daily_income
+     WHERE date>=$1 AND date<$2 ${shopFilter}
+     GROUP BY date ORDER BY date`,
+    params
+  );
+  const largeExpenses = await pool.query(
+    `SELECT category AS label, note, amount, to_char(date, 'YYYY-MM-DD') AS date FROM daily_expense
+     WHERE date>=$1 AND date<$2 ${shopFilter}
+     AND amount > 300
+     ORDER BY amount DESC`,
+    params
+  );
+
+  const cashIncomeTotal = Number(income.rows.find((r) => r.method === 'nakit')?.total ?? 0);
+  const posTotal = Number(income.rows.find((r) => r.method === 'pos')?.total ?? 0);
+  const totalExpense = Number(expense.rows[0].total);
+
+  res.json({
+    posIncome: posTotal,
+    cashIncome: cashIncomeTotal,
+    totalIncome: posTotal + cashIncomeTotal,
+    totalExpense,
+    balance: posTotal + cashIncomeTotal - totalExpense,
+    expenseByCategory: byCategory.rows.map((r) => ({ category: r.category, total: Number(r.total) })),
+    dailyIncome: byDate.rows.map((r) => ({ date: r.date, total: Number(r.total) })),
+    largeExpenses: largeExpenses.rows.map((r) => ({ label: r.label, note: r.note, amount: Number(r.amount), date: r.date })),
+  });
+});
+
 export default router;

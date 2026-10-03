@@ -405,6 +405,14 @@ section form button:active { transform: scale(0.98); }
   color: var(--text-muted);
 }
 
+.week-pdf-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
 .report-mode-toggle {
   display: flex;
   gap: 6px;

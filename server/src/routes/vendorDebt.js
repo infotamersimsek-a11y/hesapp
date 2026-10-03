@@ -3,6 +3,13 @@ import { pool } from '../db.js';
 
 const router = Router();
 
+function toDateStr(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 router.get('/', async (req, res) => {
   const { rows } = await pool.query(
     `SELECT * FROM vendor_debt WHERE debt_amount <> 0 ORDER BY debt_amount DESC`
@@ -30,10 +37,18 @@ router.get('/', async (req, res) => {
 });
 
 router.get('/debt-paid', async (req, res) => {
-  const { year, month } = req.query;
-  if (!year || !month) return res.status(400).json({ error: 'year and month required' });
-  const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
-  const nextMonth = Number(month) === 12 ? `${Number(year) + 1}-01-01` : `${year}-${String(Number(month) + 1).padStart(2, '0')}-01`;
+  const { year, month, since } = req.query;
+  let periodStart, periodEnd;
+  if (since) {
+    periodStart = since;
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    periodEnd = toDateStr(tomorrow);
+  } else {
+    if (!year || !month) return res.status(400).json({ error: 'year and month, or since, required' });
+    periodStart = `${year}-${String(month).padStart(2, '0')}-01`;
+    periodEnd = Number(month) === 12 ? `${Number(year) + 1}-01-01` : `${year}-${String(Number(month) + 1).padStart(2, '0')}-01`;
+  }
 
   const vendorsRes = await pool.query('SELECT vendor_name, debt_amount FROM vendor_debt ORDER BY vendor_name');
 
@@ -42,7 +57,7 @@ router.get('/debt-paid', async (req, res) => {
      FROM vendor_debt_log
      WHERE recorded_at < $1
      ORDER BY vendor_name, recorded_at DESC`,
-    [monthStart]
+    [periodStart]
   );
   const baselineMap = new Map(baselineRes.rows.map((r) => [r.vendor_name, { amount: Number(r.amount), date: r.recorded_date, isMonthStart: true }]));
 
@@ -51,7 +66,7 @@ router.get('/debt-paid', async (req, res) => {
      FROM vendor_debt_log
      WHERE recorded_at >= $1 AND recorded_at < $2
      ORDER BY vendor_name, recorded_at ASC`,
-    [monthStart, nextMonth]
+    [periodStart, periodEnd]
   );
   for (const r of fallbackRes.rows) {
     if (!baselineMap.has(r.vendor_name)) {

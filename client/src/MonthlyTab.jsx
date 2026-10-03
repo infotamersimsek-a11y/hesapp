@@ -2,12 +2,24 @@ import { useEffect, useState } from 'react';
 import { api } from './api';
 import { useLiveRefresh } from './useLiveRefresh';
 import { formatMoney } from './format';
-import { generateMonthlyReportPdf } from './pdfReport';
+import { generateMonthlyReportPdf, generateWeeklyReportPdf } from './pdfReport';
 import { buildMonthDays, analyzeDaySet, analyzeMonthDays } from './monthDays';
 
 const now = new Date();
 const FIXED_EXPENSE_TYPES = ['Kira', 'Elektrik', 'Su', 'Doğalgaz', 'Ev Kirası', 'Ambalaj', 'Lale Gıda', 'Örgün Gıda', 'Coca-Cola', 'Alpedo', 'Fıstıkçı', 'Tüpçü', 'Taş Kadayıfçı', 'Kadayıfçı', 'Diğer'];
 const dateFormatter = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+const weekDateFormatter = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' });
+
+function toDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function mondayOf(date) {
+  const d = new Date(date);
+  const isoDow = d.getDay() === 0 ? 7 : d.getDay();
+  d.setDate(d.getDate() - (isoDow - 1));
+  return d;
+}
 
 function mergeByKey(lists, key) {
   const map = new Map();
@@ -183,6 +195,9 @@ export default function MonthlyTab({ shops }) {
   const [showReport, setShowReport] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfError, setPdfError] = useState(null);
+  const [weekStart, setWeekStart] = useState(() => toDateStr(mondayOf(new Date())));
+  const [weekPdfBusy, setWeekPdfBusy] = useState(false);
+  const [weekPdfError, setWeekPdfError] = useState(null);
   const [reportMode, setReportMode] = useState('separate');
   const [waste, setWaste] = useState([]);
 
@@ -364,6 +379,33 @@ export default function MonthlyTab({ shops }) {
           {pdfBusy ? 'PDF Hazırlanıyor...' : '📄 PDF İndir'}
         </button>
         {pdfError && <p className="bad">{pdfError}</p>}
+
+        <div className="week-pdf-row">
+          <button type="button" className="edit-link" onClick={() => setWeekStart((ws) => { const d = new Date(ws + 'T00:00:00'); d.setDate(d.getDate() - 7); return toDateStr(d); })}>◀ Önceki Hafta</button>
+          <span className="hint">
+            {weekDateFormatter.format(new Date(weekStart + 'T00:00:00'))} - {weekDateFormatter.format(new Date(new Date(weekStart + 'T00:00:00').getTime() + 6 * 86400000))}
+          </span>
+          <button type="button" className="edit-link" onClick={() => setWeekStart((ws) => { const d = new Date(ws + 'T00:00:00'); d.setDate(d.getDate() + 7); return toDateStr(d); })}>Sonraki Hafta ▶</button>
+          <button
+            type="button"
+            className="file-btn"
+            disabled={weekPdfBusy}
+            onClick={async () => {
+              setWeekPdfBusy(true);
+              setWeekPdfError(null);
+              try {
+                await generateWeeklyReportPdf({ weekStart, shops });
+              } catch (err) {
+                setWeekPdfError(err.message);
+              } finally {
+                setWeekPdfBusy(false);
+              }
+            }}
+          >
+            {weekPdfBusy ? 'PDF Hazırlanıyor...' : '📄 Haftalık PDF İndir'}
+          </button>
+        </div>
+        {weekPdfError && <p className="bad">{weekPdfError}</p>}
 
         {showReport && (
           <div className="report-mode-toggle">

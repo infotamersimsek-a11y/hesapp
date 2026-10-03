@@ -226,30 +226,38 @@ router.get('/', async (req, res) => {
 });
 
 router.get('/debt-paid', async (req, res) => {
-  const { year, month } = req.query;
-  if (!year || !month) return res.status(400).json({ error: 'year and month required' });
-  const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
-  const nextMonth = Number(month) === 12 ? `${Number(year) + 1}-01-01` : `${year}-${String(Number(month) + 1).padStart(2, '0')}-01`;
+  const { year, month, since } = req.query;
+  let periodStart, periodEnd;
+  if (since) {
+    periodStart = since;
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    periodEnd = toDateStr(tomorrow);
+  } else {
+    if (!year || !month) return res.status(400).json({ error: 'year and month, or since, required' });
+    periodStart = `${year}-${String(month).padStart(2, '0')}-01`;
+    periodEnd = Number(month) === 12 ? `${Number(year) + 1}-01-01` : `${year}-${String(Number(month) + 1).padStart(2, '0')}-01`;
+  }
 
   const cardsRes = await pool.query('SELECT id, name, owner, type, last4, debt_amount FROM credit_cards ORDER BY id');
 
-  // Tercih edilen: ayın başlangıcından önceki son kayıt (gerçek "ay başı" değeri)
+  // Tercih edilen: dönem başlangıcından önceki son kayıt (gerçek "başlangıç" değeri)
   const baselineRes = await pool.query(
     `SELECT DISTINCT ON (credit_card_id) credit_card_id, amount, to_char(recorded_at, 'YYYY-MM-DD') AS recorded_date
      FROM credit_card_debt_log
      WHERE recorded_at < $1
      ORDER BY credit_card_id, recorded_at DESC`,
-    [monthStart]
+    [periodStart]
   );
   const baselineMap = new Map(baselineRes.rows.map((r) => [r.credit_card_id, { amount: Number(r.amount), date: r.recorded_date, isMonthStart: true }]));
 
-  // Yedek: ay başından önce hiç kayıt yoksa, ay içindeki İLK kaydı kullan (örn. kart bu ay eklendiyse)
+  // Yedek: dönem başından önce hiç kayıt yoksa, dönem içindeki İLK kaydı kullan (örn. kart bu dönemde eklendiyse)
   const fallbackRes = await pool.query(
     `SELECT DISTINCT ON (credit_card_id) credit_card_id, amount, to_char(recorded_at, 'YYYY-MM-DD') AS recorded_date
      FROM credit_card_debt_log
      WHERE recorded_at >= $1 AND recorded_at < $2
      ORDER BY credit_card_id, recorded_at ASC`,
-    [monthStart, nextMonth]
+    [periodStart, periodEnd]
   );
   for (const r of fallbackRes.rows) {
     if (!baselineMap.has(r.credit_card_id)) {

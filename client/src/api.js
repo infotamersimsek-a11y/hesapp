@@ -45,6 +45,7 @@ export const api = {
 
   dailySummary: (params) => request(`/summary/daily?${new URLSearchParams(params)}`),
   monthlySummary: (params) => request(`/summary/monthly?${new URLSearchParams(params)}`),
+  weeklySummary: (params) => request(`/summary/weekly?${new URLSearchParams(params)}`),
 
   voiceEntry: (formData) => request('/ai/voice-entry', { method: 'POST', body: formData }),
   receiptExpense: (formData) => request('/ai/receipt-expense', { method: 'POST', body: formData }),
