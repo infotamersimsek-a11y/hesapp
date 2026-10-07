@@ -200,6 +200,7 @@ export default function MonthlyTab({ shops }) {
   const [vendorAmount, setVendorAmount] = useState('');
   const [vendorCardId, setVendorCardId] = useState('');
   const [cards, setCards] = useState([]);
+  const [fixedExpenseList, setFixedExpenseList] = useState([]);
   const [showReport, setShowReport] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfError, setPdfError] = useState(null);
@@ -225,12 +226,14 @@ export default function MonthlyTab({ shops }) {
     if (hacId) {
       const daysInMonth = new Date(year, month, 0).getDate();
       const monthStr = String(month).padStart(2, '0');
-      const [cardList, wasteList] = await Promise.all([
+      const [cardList, wasteList, yearExpenses] = await Promise.all([
         api.creditCardsList(),
         api.wasteLogList({ shop_id: hacId, from: `${year}-${monthStr}-01`, to: `${year}-${monthStr}-${String(daysInMonth).padStart(2, '0')}` }),
+        api.monthlyExpenseList({ year }),
       ]);
       setCards(cardList);
       setWaste(wasteList);
+      setFixedExpenseList(yearExpenses.filter((x) => x.shop_id === hacId && x.month === month).sort((a, b) => Number(b.amount) - Number(a.amount)));
     }
   };
 
@@ -255,6 +258,12 @@ export default function MonthlyTab({ shops }) {
     setVendorNote('');
     setVendorAmount('');
     setVendorCardId('');
+    reload();
+  };
+
+  const deleteFixedExpense = async (x) => {
+    if (!window.confirm(`${x.vendor_name} — ${formatMoney(x.amount)} silinsin mi?`)) return;
+    await api.monthlyExpenseDelete(x.id);
     reload();
   };
 
@@ -326,6 +335,30 @@ export default function MonthlyTab({ shops }) {
           <button type="submit">Ekle</button>
         </form>
         <p className="hint">Eklenen ödemeler ilgili firmanın borcuna işlenir — firma bazlı durumu Kredi Kartları sekmesindeki "Firma Borçları" kartlarından takip et.</p>
+
+        {fixedExpenseList.length > 0 && (
+          <>
+            <h4>Bu Ayki Sabit Gider Kayıtları</h4>
+            <p className="hint">Hatalı/mükerrer bir kayıt görürsen sil, doğrusunu yukarıdan tekrar ekle.</p>
+            <ul className="report-list">
+              {fixedExpenseList.map((x) => {
+                const card = cards.find((c) => c.id === x.credit_card_id);
+                return (
+                  <li key={x.id}>
+                    <span>
+                      {x.vendor_name}{x.note ? ` — ${x.note}` : ''}
+                      {card ? <span className="tag-pos"> {card.name} {card.owner}{card.last4 ? ` ••••${card.last4}` : ''}</span> : ''}
+                    </span>
+                    <span>
+                      {formatMoney(x.amount)}
+                      <button type="button" className="delete-link" onClick={() => deleteFixedExpense(x)}>Sil</button>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
       </section>
 
       {hacId && (() => {
