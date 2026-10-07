@@ -193,7 +193,7 @@ export default function MonthlyTab({ shops }) {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [summaries, setSummaries] = useState({});
-  const [prevSummaries, setPrevSummaries] = useState({});
+  const [budgetBalance, setBudgetBalance] = useState(0);
   const [vendorType, setVendorType] = useState(FIXED_EXPENSE_TYPES[0]);
   const [vendorCustomName, setVendorCustomName] = useState('');
   const [vendorNote, setVendorNote] = useState('');
@@ -211,21 +211,16 @@ export default function MonthlyTab({ shops }) {
 
   const hacId = shops.find((s) => s.name === 'Hacıoğulları')?.id;
 
-  const prevMonth = month === 1 ? 12 : month - 1;
-  const prevYear = month === 1 ? year - 1 : year;
-
   const reload = async () => {
     if (shops.length === 0) return;
-    const [results, prevResults] = await Promise.all([
+    const [results, budgets] = await Promise.all([
       Promise.all(shops.map((s) => api.monthlySummary({ shop_id: s.id, year, month }))),
-      Promise.all(shops.map((s) => api.monthlySummary({ shop_id: s.id, year: prevYear, month: prevMonth }))),
+      Promise.all(shops.map((s) => api.budgetGet(s.id))),
     ]);
     const map = {};
     shops.forEach((s, i) => { map[s.id] = results[i]; });
     setSummaries(map);
-    const prevMap = {};
-    shops.forEach((s, i) => { prevMap[s.id] = prevResults[i]; });
-    setPrevSummaries(prevMap);
+    setBudgetBalance(budgets.reduce((sum, b) => sum + b.balance, 0));
 
     if (hacId) {
       const daysInMonth = new Date(year, month, 0).getDate();
@@ -302,12 +297,12 @@ export default function MonthlyTab({ shops }) {
               <span>Toplam Gider: {formatMoney(totalExpense)}</span>
               <span>Sabit Gider: {formatMoney(summaries[hacId]?.fixedExpense ?? 0)}</span>
               <span className={totalBalance >= 0 ? 'ok' : 'bad'}>Bakiye: {formatMoney(totalBalance)}</span>
-              <span>Geçen Ay: {formatMoney(shops.reduce((s, sh) => s + Math.max(0, prevSummaries[sh.id]?.balance ?? 0), 0))}</span>
+              <span className={budgetBalance >= 0 ? 'ok' : 'bad'}>Kasa Bakiyesi: {formatMoney(budgetBalance)}</span>
             </div>
           </div>
         );
       })()}
-      <p className="hint">Nakit ve POS gelirleri Günlük sekmesinden girilir, buradaki toplamlar otomatik hesaplanır.</p>
+      <p className="hint">Nakit ve POS gelirleri Günlük sekmesinden girilir, buradaki toplamlar otomatik hesaplanır. "Bakiye" bu ayın gelir-gideri; "Kasa Bakiyesi" ise Günlük sekmesindeki "Var Olan Bütçe" kasasının güncel toplamı (elle eklenen/harcanan).</p>
 
       <section className="section-expense">
         <h3>Sabit Gider Ekle (Hacıoğulları)</h3>
