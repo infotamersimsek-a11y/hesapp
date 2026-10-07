@@ -25,7 +25,7 @@ router.get('/', async (req, res) => {
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const { rows } = await pool.query(
-    `SELECT * FROM daily_income ${where} ORDER BY date DESC, id DESC`,
+    `SELECT id, shop_id, to_char(date, 'YYYY-MM-DD') AS date, method, amount, note FROM daily_income ${where} ORDER BY date DESC, id DESC`,
     params
   );
   res.json(rows);
@@ -35,7 +35,8 @@ router.post('/', async (req, res) => {
   const { shop_id, date, method, amount, note, admin_password } = req.body;
   assertDateAllowed(date, admin_password, isTrustedAdmin(req));
   const { rows } = await pool.query(
-    `INSERT INTO daily_income (shop_id, date, method, amount, note) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    `INSERT INTO daily_income (shop_id, date, method, amount, note) VALUES ($1, $2, $3, $4, $5)
+     RETURNING id, shop_id, to_char(date, 'YYYY-MM-DD') AS date, method, amount, note`,
     [shop_id, date, method || 'nakit', amount, note ?? null]
   );
   res.status(201).json(rows[0]);
@@ -45,7 +46,8 @@ router.put('/:id', async (req, res) => {
   const { shop_id, date, method, amount, note, admin_password } = req.body;
   assertDateAllowed(date, admin_password, isTrustedAdmin(req));
   const { rows } = await pool.query(
-    `UPDATE daily_income SET shop_id=$1, date=$2, method=$3, amount=$4, note=$5 WHERE id=$6 RETURNING *`,
+    `UPDATE daily_income SET shop_id=$1, date=$2, method=$3, amount=$4, note=$5 WHERE id=$6
+     RETURNING id, shop_id, to_char(date, 'YYYY-MM-DD') AS date, method, amount, note`,
     [shop_id, date, method || 'nakit', amount, note ?? null, req.params.id]
   );
   if (!rows.length) return res.status(404).json({ error: 'not found' });

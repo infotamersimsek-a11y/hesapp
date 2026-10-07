@@ -25,7 +25,7 @@ router.get('/', async (req, res) => {
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const { rows } = await pool.query(
-    `SELECT * FROM waste_log ${where} ORDER BY date DESC, id DESC`,
+    `SELECT id, shop_id, to_char(date, 'YYYY-MM-DD') AS date, category, amount_kg, note FROM waste_log ${where} ORDER BY date DESC, id DESC`,
     params
   );
   res.json(rows);
@@ -35,7 +35,8 @@ router.post('/', async (req, res) => {
   const { shop_id, date, category, amount_kg, note, admin_password } = req.body;
   assertDateAllowed(date, admin_password, isTrustedAdmin(req));
   const { rows } = await pool.query(
-    `INSERT INTO waste_log (shop_id, date, category, amount_kg, note) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    `INSERT INTO waste_log (shop_id, date, category, amount_kg, note) VALUES ($1, $2, $3, $4, $5)
+     RETURNING id, shop_id, to_char(date, 'YYYY-MM-DD') AS date, category, amount_kg, note`,
     [shop_id, date, category, amount_kg, note ?? null]
   );
   res.status(201).json(rows[0]);

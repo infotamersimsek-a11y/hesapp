@@ -26,7 +26,8 @@ router.get('/', async (req, res) => {
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const { rows } = await pool.query(
-    `SELECT * FROM daily_expense ${where} ORDER BY date DESC, id DESC`,
+    `SELECT id, shop_id, to_char(date, 'YYYY-MM-DD') AS date, category, amount, note, credit_card_id, cash_source, person
+     FROM daily_expense ${where} ORDER BY date DESC, id DESC`,
     params
   );
   res.json(rows);
@@ -49,7 +50,8 @@ router.post('/', async (req, res) => {
   const { shop_id, date, category, amount, note, credit_card_id, cash_source, person, admin_password } = req.body;
   assertDateAllowed(date, admin_password, isTrustedAdmin(req));
   const { rows } = await pool.query(
-    `INSERT INTO daily_expense (shop_id, date, category, amount, note, credit_card_id, cash_source, person) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+    `INSERT INTO daily_expense (shop_id, date, category, amount, note, credit_card_id, cash_source, person) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     RETURNING id, shop_id, to_char(date, 'YYYY-MM-DD') AS date, category, amount, note, credit_card_id, cash_source, person`,
     [shop_id, date, category, amount, note ?? null, credit_card_id || null, cash_source || null, person || null]
   );
   if (credit_card_id) await adjustCardDebt(credit_card_id, debtDeltaFor(category, amount));
@@ -67,7 +69,8 @@ router.put('/:id', async (req, res) => {
   assertDateAllowed(date, admin_password, isTrustedAdmin(req));
   const prev = await pool.query('SELECT amount, category, credit_card_id FROM daily_expense WHERE id=$1', [req.params.id]);
   const { rows } = await pool.query(
-    `UPDATE daily_expense SET shop_id=$1, date=$2, category=$3, amount=$4, note=$5, credit_card_id=$6, cash_source=$7, person=$8 WHERE id=$9 RETURNING *`,
+    `UPDATE daily_expense SET shop_id=$1, date=$2, category=$3, amount=$4, note=$5, credit_card_id=$6, cash_source=$7, person=$8 WHERE id=$9
+     RETURNING id, shop_id, to_char(date, 'YYYY-MM-DD') AS date, category, amount, note, credit_card_id, cash_source, person`,
     [shop_id, date, category, amount, note ?? null, credit_card_id || null, cash_source || null, person || null, req.params.id]
   );
   if (!rows.length) return res.status(404).json({ error: 'not found' });

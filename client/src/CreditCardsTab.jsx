@@ -89,7 +89,7 @@ function CardDetailsPhoto({ onRead }) {
   );
 }
 
-function DebtItem({ c, g, onDone, onDelete, onDefer }) {
+function DebtItem({ c, onDone, onDelete, onDefer }) {
   const [showDetail, setShowDetail] = useState(false);
   const limitPct = c.credit_limit ? Math.min(100, Math.max(0, Math.round((Number(c.debt_amount) / Number(c.credit_limit)) * 100))) : null;
   const hasHistory = c.recent_charges.length > 0;
@@ -209,7 +209,7 @@ function CardGroup({ g, onDone, onDelete, onDefer }) {
       </div>
 
       {g.items.map((c) => (
-        <DebtItem key={c.id} c={c} g={g} onDone={onDone} onDelete={onDelete} onDefer={onDefer} />
+        <DebtItem key={c.id} c={c} onDone={onDone} onDelete={onDelete} onDefer={onDefer} />
       ))}
     </div>
   );

@@ -301,8 +301,8 @@ h1 {
   margin-bottom: 8px;
 }
 
-.summary .ok { color: var(--ok); font-weight: 700; }
-.summary .bad { color: var(--bad); font-weight: 700; }
+.ok { color: var(--ok); font-weight: 700; }
+.bad { color: var(--bad); font-weight: 700; }
 
 .grid {
   display: grid;
