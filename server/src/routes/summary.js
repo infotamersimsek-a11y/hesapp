@@ -85,17 +85,15 @@ router.get('/monthly', async (req, res) => {
      ORDER BY amount DESC`,
     params
   );
-  const largeDaily = await pool.query(
+  const allDaily = await pool.query(
     `SELECT category AS label, note, amount, to_char(date, 'YYYY-MM-DD') AS date FROM daily_expense
      WHERE EXTRACT(YEAR FROM date)=$1 AND EXTRACT(MONTH FROM date)=$2 ${shopFilter}
-     AND amount > 300
      ORDER BY amount DESC`,
     params
   );
-  const largeFixed = await pool.query(
+  const allFixed = await pool.query(
     `SELECT vendor_name AS label, note, amount, NULL AS date FROM monthly_expense
      WHERE year=$1 AND month=$2 ${shopFilter}
-     AND amount > 300
      ORDER BY amount DESC`,
     params
   );
@@ -117,7 +115,7 @@ router.get('/monthly', async (req, res) => {
     expenseByVendor: byVendor.rows.map((r) => ({ vendor: r.vendor_name, total: Number(r.total) })),
     dailyIncome: byDate.rows.map((r) => ({ date: r.date, total: Number(r.total) })),
     otherExpenseDetails: otherDetails.rows.map((r) => ({ note: r.note, amount: Number(r.amount), date: r.date })),
-    largeExpenses: [...largeDaily.rows, ...largeFixed.rows]
+    largeExpenses: [...allDaily.rows, ...allFixed.rows]
       .map((r) => ({ label: r.label, note: r.note, amount: Number(r.amount), date: r.date }))
       .sort((a, b) => b.amount - a.amount),
   });
@@ -158,7 +156,6 @@ router.get('/weekly', async (req, res) => {
   const largeExpenses = await pool.query(
     `SELECT category AS label, note, amount, to_char(date, 'YYYY-MM-DD') AS date FROM daily_expense
      WHERE date>=$1 AND date<$2 ${shopFilter}
-     AND amount > 300
      ORDER BY amount DESC`,
     params
   );

@@ -106,4 +106,11 @@ router.put('/:vendor_name', async (req, res) => {
   res.json(rows[0]);
 });
 
+router.delete('/:vendor_name', async (req, res) => {
+  const vendorName = decodeURIComponent(req.params.vendor_name);
+  await pool.query('DELETE FROM vendor_debt WHERE vendor_name=$1', [vendorName]);
+  await pool.query('DELETE FROM vendor_debt_log WHERE vendor_name=$1', [vendorName]);
+  res.status(204).end();
+});
+
 export default router;

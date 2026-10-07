@@ -96,14 +96,6 @@ function DebtItem({ c, g, onDone, onDelete, onDefer }) {
 
   return (
     <div className="debt-item">
-      {c.reconciliation?.flagged && (
-        <div
-          className="reconciliation-banner"
-          title={`Ay başından bu yana borç ${formatMoney(c.reconciliation.card_spend_estimate)} değişti, kayıtlı işlemler ${formatMoney(c.reconciliation.recorded_expense_this_month)} — fark ${formatMoney(c.reconciliation.discrepancy)}`}
-        >
-          ⚠ Tutarsız: {formatMoney(c.reconciliation.discrepancy)} fark
-        </div>
-      )}
       <div className="debt-item-top">
         <span className="debt-item-type">{c.type}{c.last4 ? ` •••• ${c.last4}` : ''}</span>
         <div className="debt-item-flags">
@@ -347,10 +339,17 @@ function VendorCard({ v, onDone }) {
     onDone();
   };
 
+  const remove = async () => {
+    if (!window.confirm(`${v.vendor_name} silinsin mi? Borç kapandıysa ve bu firmayla işin bittiyse silebilirsin.`)) return;
+    await api.vendorDebtDelete(v.vendor_name);
+    onDone();
+  };
+
   return (
     <div className="credit-card" style={{ background: color, color: textColor, '--overlay-weak': overlayWeak, '--overlay-strong': overlayStrong }}>
       <div className="credit-card-header">
         <strong className="bank-name">{v.vendor_name}</strong>
+        <button className="delete-link" onClick={remove}>Sil</button>
       </div>
       <div className="debt-item">
         <div className="debt-hero">

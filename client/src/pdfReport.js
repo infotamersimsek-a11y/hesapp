@@ -36,6 +36,7 @@ async function renderReportPdf({
   debtPeriodLabel,
   missingByShop,
   includeVendorExpenseSection,
+  reconciliationFlags,
 }) {
   const { doc, autoTable } = await loadPdfLibs();
 
@@ -129,6 +130,30 @@ async function renderReportPdf({
     y += 6;
   }
 
+  // Kart Tutarsızlıkları (sadece güncel ay raporunda — reconciliation her zaman "bu ay" baz alınarak hesaplanıyor)
+  if (reconciliationFlags && reconciliationFlags.length > 0) {
+    sectionTitle('Kart Tutarsızlıkları — Dikkat');
+    autoTable(doc, {
+      ...tableDefaults,
+      startY: y,
+      head: [['Kart', 'Ay Başından Beri Borç Değişimi', 'Kayıtlı İşlem Toplamı', 'Fark']],
+      body: reconciliationFlags.map((c) => [
+        `${c.name} ${c.owner} — ${c.type}${c.last4 ? ` ••••${c.last4}` : ''}`,
+        formatMoney(c.reconciliation.card_spend_estimate),
+        formatMoney(c.reconciliation.recorded_expense_this_month),
+        formatMoney(c.reconciliation.discrepancy),
+      ]),
+      columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } },
+      styles: { ...tableDefaults.styles, fontSize: 9 },
+    });
+    y = doc.lastAutoTable.finalY + 4;
+    doc.setFont('Arial', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text('* Borç değişimi kayıtlı harcama/ödemelerle eşleşmiyor — elle düzeltme veya açıklanamayan fark olabilir.', margin, y);
+    y += 12;
+  }
+
   // Firma Borcu — Dönem Başı / Şimdi (ne kadar ödendi)
   if (vendorDebtPaid.byVendor.length > 0) {
     sectionTitle(`Firma Borcu — ${debtPeriodLabel} (Toplam Ödenen: ${formatMoney(vendorDebtPaid.totalPaid)})`);
@@ -199,9 +224,9 @@ async function renderReportPdf({
     y = doc.lastAutoTable.finalY + 10;
   }
 
-  // 300 TL Üzeri Harcamalar
+  // Tüm Harcama Detayı (her kalem, tutarı büyükten küçüğe)
   if (combined.largeExpenses.length > 0) {
-    sectionTitle('300 ₺ Üzeri Harcamalar');
+    sectionTitle(`Harcama Detayı (${combined.largeExpenses.length} kalem)`);
     autoTable(doc, {
       ...tableDefaults,
       startY: y,
@@ -274,6 +299,13 @@ export async function generateMonthlyReportPdf({ year, month, shops }) {
     return { shop: s.name, missingDates };
   });
 
+  const now = new Date();
+  let reconciliationFlags = null;
+  if (Number(year) === now.getFullYear() && Number(month) === now.getMonth() + 1) {
+    const cards = await api.creditCardsList();
+    reconciliationFlags = cards.filter((c) => c.reconciliation?.flagged);
+  }
+
   await renderReportPdf({
     titleLine2: `Aylık Özet Raporu — ${monthYearFormatter.format(new Date(year, month - 1, 1))}`,
     filename: `ozet-rapor-${year}-${String(month).padStart(2, '0')}.pdf`,
@@ -281,6 +313,7 @@ export async function generateMonthlyReportPdf({ year, month, shops }) {
     perShop,
     shops,
     waste,
+    reconciliationFlags,
     debtPaid,
     vendorDebtPaid,
     debtPeriodLabel: 'Ay Başı / Şimdi',

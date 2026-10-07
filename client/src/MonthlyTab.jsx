@@ -6,7 +6,7 @@ import { generateMonthlyReportPdf, generateWeeklyReportPdf } from './pdfReport';
 import { buildMonthDays, analyzeDaySet, analyzeMonthDays } from './monthDays';
 
 const now = new Date();
-const FIXED_EXPENSE_TYPES = ['Kira', 'Elektrik', 'Su', 'Doğalgaz', 'Ev Kirası', 'Ambalaj', 'Lale Gıda', 'Örgün Gıda', 'Coca-Cola', 'Alpedo', 'Fıstıkçı', 'Tüpçü', 'Taş Kadayıfçı', 'Kadayıfçı', 'Diğer'];
+const FIXED_EXPENSE_TYPES = ['Kira', 'Elektrik', 'Su', 'Doğalgaz', 'Ev Kirası', 'Ambalaj', 'Lale Gıda', 'Örgün Gıda', 'Coca-Cola', 'Alpedo', 'Fıstıkçı', 'Tüpçü', 'Taş Kadayıfçı', 'Kadayıfçı', 'Personel', 'Diğer'];
 const dateFormatter = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
 const weekDateFormatter = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' });
 
