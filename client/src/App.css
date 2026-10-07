@@ -456,6 +456,24 @@ section form button:active { transform: scale(0.98); }
   font-weight: 700;
 }
 
+.chart-collapse-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.chart-collapse-toggle h4 {
+  margin: 0;
+}
+
 .report-box h4:not(:first-child) {
   margin-top: 16px;
 }

@@ -91,10 +91,11 @@ function simpleAverage(daySet) {
   return businessDays.length ? businessDays.reduce((s, d) => s + d.total, 0) / businessDays.length : 0;
 }
 
-function DailyRevenueChart({ title, dailyIncome, year, month, formatValue = formatMoney, avgLabel = 'Günlük Ortalama Ciro', detectMissing = true, includeSunday = false }) {
+function DailyRevenueChart({ title, dailyIncome, year, month, formatValue = formatMoney, avgLabel = 'Günlük Ortalama Ciro', detectMissing = true, includeSunday = false, defaultOpen = false }) {
   const { days, isCurrentMonth, todayStr, byDate } = buildMonthDays(dailyIncome, year, month, includeSunday);
   const weeks = chunkWeeks(days);
   const [weekIdx, setWeekIdx] = useState(weeks.length - 1);
+  const [open, setOpen] = useState(defaultOpen);
   useEffect(() => { setWeekIdx(chunkWeeks(buildMonthDays(dailyIncome, year, month, includeSunday).days).length - 1); }, [year, month]);
   const clampedIdx = Math.max(0, Math.min(weekIdx, weeks.length - 1));
   const weekDays = weeks[clampedIdx] || [];
@@ -107,7 +108,14 @@ function DailyRevenueChart({ title, dailyIncome, year, month, formatValue = form
 
   return (
     <div className="report-box">
-      <h4>{title}</h4>
+      <button type="button" className="chart-collapse-toggle" onClick={() => setOpen((v) => !v)}>
+        <h4>{title}</h4>
+        <span className="hint">{avgLabel}: <strong>{formatValue(avg)}</strong> {open ? '▲' : '▼'}</span>
+      </button>
+      {!open && missingDates.length > 0 && (
+        <p className="missing-days-warning">⚠ Bu haftada {missingDates.length} gün veri girilmemiş</p>
+      )}
+      {open && <>
       {rangeLabel && <p className="hint">{rangeLabel}</p>}
       {weeks.length > 1 && (
         <div className="pager">
@@ -147,9 +155,9 @@ function DailyRevenueChart({ title, dailyIncome, year, month, formatValue = form
               ? (detectMissing ? 'Mavi: hesaba dahil · Kırmızı: veri girilmemiş (ortalamaya dahil değil)' : 'Mavi: hesaba dahil')
               : (detectMissing ? 'Mavi: hesaba dahil · Gri: Pazar (ortalamaya dahil değil) · Kırmızı: veri girilmemiş (ortalamaya dahil değil)' : 'Mavi: hesaba dahil · Gri: Pazar (ortalamaya dahil değil)')}
           </p>
-          <p>{avgLabel}: <strong>{formatValue(avg)}</strong></p>
         </>
       )}
+      </>}
     </div>
   );
 }
