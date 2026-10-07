@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from './api';
 import { useLiveRefresh } from './useLiveRefresh';
 import { formatMoney } from './format';
-import { getBankColor, getContrastText, TURKISH_BANKS, SUPPLIER_COLORS, getSupplierColor } from './bankColors';
+import { getBankColor, getContrastText, TURKISH_BANKS, SUPPLIER_COLORS, getSupplierColor, SABIT_GIDER_FIRMALARI } from './bankColors';
 import { getDefaultShop } from './auth';
 
 const dateFormatter = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -440,7 +440,12 @@ export default function CreditCardsTab() {
 
   const reload = async () => {
     setCards(await api.creditCardsList());
-    setVendors(await api.vendorDebtList());
+    const vendorList = await api.vendorDebtList();
+    const vendorMap = new Map(vendorList.map((v) => [v.vendor_name, v]));
+    for (const name of SABIT_GIDER_FIRMALARI) {
+      if (!vendorMap.has(name)) vendorMap.set(name, { vendor_name: name, debt_amount: 0, history: [] });
+    }
+    setVendors(Array.from(vendorMap.values()).sort((a, b) => a.vendor_name.localeCompare(b.vendor_name, 'tr')));
     const now = new Date();
     setPersonalExpense(await api.dailyExpensePersonalSummary({ year: now.getFullYear(), month: now.getMonth() + 1 }));
   };

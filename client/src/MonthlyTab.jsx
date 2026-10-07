@@ -4,9 +4,10 @@ import { useLiveRefresh } from './useLiveRefresh';
 import { formatMoney } from './format';
 import { generateMonthlyReportPdf, generateWeeklyReportPdf } from './pdfReport';
 import { buildMonthDays, analyzeDaySet, analyzeMonthDays } from './monthDays';
+import { SABIT_GIDER_FIRMALARI } from './bankColors';
 
 const now = new Date();
-const FIXED_EXPENSE_TYPES = ['Kira', 'Elektrik', 'Su', 'Doğalgaz', 'Ev Kirası', 'Ambalaj', 'Lale Gıda', 'Örgün Gıda', 'Coca-Cola', 'Alpedo', 'Fıstıkçı', 'Tüpçü', 'Taş Kadayıfçı', 'Kadayıfçı', 'Personel', 'Diğer'];
+const FIXED_EXPENSE_TYPES = [...SABIT_GIDER_FIRMALARI, 'Diğer'];
 const dateFormatter = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
 const weekDateFormatter = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' });
 
@@ -189,25 +190,6 @@ function ShopComparisonChart({ shops, summaries, year, month }) {
   );
 }
 
-function VendorDebtRow({ v, onDone }) {
-  const [amount, setAmount] = useState(v.debt_amount);
-  const save = async (e) => {
-    e.preventDefault();
-    if (amount === '') return;
-    await api.vendorDebtUpdate(v.vendor_name, amount);
-    onDone();
-  };
-  return (
-    <li>
-      <span>{v.vendor_name}</span>
-      <form className="inline-update" onSubmit={save}>
-        <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
-        <button type="submit">Güncelle</button>
-      </form>
-    </li>
-  );
-}
-
 export default function MonthlyTab({ shops }) {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -220,7 +202,6 @@ export default function MonthlyTab({ shops }) {
   const [vendorCardId, setVendorCardId] = useState('');
   const [cards, setCards] = useState([]);
   const [fixedExpenseList, setFixedExpenseList] = useState([]);
-  const [vendors, setVendors] = useState([]);
   const [showReport, setShowReport] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfError, setPdfError] = useState(null);
@@ -246,16 +227,14 @@ export default function MonthlyTab({ shops }) {
     if (hacId) {
       const daysInMonth = new Date(year, month, 0).getDate();
       const monthStr = String(month).padStart(2, '0');
-      const [cardList, wasteList, yearExpenses, vendorList] = await Promise.all([
+      const [cardList, wasteList, yearExpenses] = await Promise.all([
         api.creditCardsList(),
         api.wasteLogList({ shop_id: hacId, from: `${year}-${monthStr}-01`, to: `${year}-${monthStr}-${String(daysInMonth).padStart(2, '0')}` }),
         api.monthlyExpenseList({ year }),
-        api.vendorDebtList(),
       ]);
       setCards(cardList);
       setWaste(wasteList);
       setFixedExpenseList(yearExpenses.filter((x) => x.shop_id === hacId && x.month === month).sort((a, b) => Number(b.amount) - Number(a.amount)));
-      setVendors(vendorList);
     }
   };
 
@@ -381,27 +360,6 @@ export default function MonthlyTab({ shops }) {
             </ul>
           </>
         )}
-
-        {(() => {
-          const vendorMap = new Map(vendors.map((v) => [v.vendor_name, v]));
-          for (const x of fixedExpenseList) {
-            if (!vendorMap.has(x.vendor_name)) vendorMap.set(x.vendor_name, { vendor_name: x.vendor_name, debt_amount: 0 });
-          }
-          for (const name of FIXED_EXPENSE_TYPES) {
-            if (name !== 'Diğer' && !vendorMap.has(name)) vendorMap.set(name, { vendor_name: name, debt_amount: 0 });
-          }
-          const editableVendors = Array.from(vendorMap.values()).sort((a, b) => a.vendor_name.localeCompare(b.vendor_name, 'tr'));
-          if (editableVendors.length === 0) return null;
-          return (
-            <>
-              <h4>Firma Güncel Borç Düzelt</h4>
-              <p className="hint">Yukarıdaki kayıtları silip/ekleyip düzelttikten sonra, bir firmanın gerçek güncel borcu hâlâ tutmuyorsa buradan elle düzeltebilirsin.</p>
-              <ul className="report-list">
-                {editableVendors.map((v) => <VendorDebtRow key={v.vendor_name} v={v} onDone={reload} />)}
-              </ul>
-            </>
-          );
-        })()}
       </section>
 
       {hacId && (() => {

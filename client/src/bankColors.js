@@ -20,6 +20,8 @@ export function getBankColor(name) {
   return found ? found.color : '#9e9e9e';
 }
 
+export const SABIT_GIDER_FIRMALARI = ['Kira', 'Elektrik', 'Su', 'Doğalgaz', 'Ev Kirası', 'Ambalaj', 'Lale Gıda', 'Örgün Gıda', 'Coca-Cola', 'Alpedo', 'Fıstıkçı', 'Tüpçü', 'Taş Kadayıfçı', 'Kadayıfçı', 'Personel'];
+
 export const SUPPLIER_COLORS = {
   'Lale Gıda': '#2E7D32',
   'Örgün Gıda': '#EF6C00',
