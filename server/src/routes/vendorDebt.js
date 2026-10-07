@@ -12,7 +12,7 @@ function toDateStr(date) {
 
 router.get('/', async (req, res) => {
   const { rows } = await pool.query(
-    `SELECT * FROM vendor_debt WHERE debt_amount <> 0 ORDER BY debt_amount DESC`
+    `SELECT * FROM vendor_debt ORDER BY debt_amount DESC`
   );
   const vendorNames = rows.map((r) => r.vendor_name);
   const historyByVendor = {};
