@@ -104,6 +104,19 @@ function DailyRevenueChart({ title, dailyIncome, year, month, formatValue = form
     ? analyzeDaySet(weekDays, isCurrentMonth, todayStr, byDate)
     : { avg: simpleAverage(weekDays), missingDates: [] };
   const missingSet = new Set(missingDates);
+  // days that have income but lack nakit or POS (only for income charts carrying hasCash/hasPos)
+  const methodByDate = new Map(dailyIncome.filter((d) => d.hasCash !== undefined).map((d) => [d.date.slice(0, 10), d]));
+  const partialMissing = detectMissing
+    ? weekDays
+        .filter((d) => !d.isSunday && !(isCurrentMonth && d.dateStr === todayStr) && methodByDate.has(d.dateStr))
+        .map((d) => {
+          const m = methodByDate.get(d.dateStr);
+          const lack = [!m.hasCash && 'nakit', !m.hasPos && 'POS'].filter(Boolean);
+          return lack.length ? { dateStr: d.dateStr, lack } : null;
+        })
+        .filter(Boolean)
+    : [];
+  const partialByDate = new Map(partialMissing.map((p) => [p.dateStr, p.lack]));
   const maxTotal = Math.max(1, ...weekDays.map((d) => d.total));
   const rangeLabel = formatDayRange(weekDays);
 
@@ -115,6 +128,9 @@ function DailyRevenueChart({ title, dailyIncome, year, month, formatValue = form
       </button>
       {!open && missingDates.length > 0 && (
         <p className="missing-days-warning">⚠ Bu haftada {missingDates.length} gün veri girilmemiş</p>
+      )}
+      {!open && partialMissing.length > 0 && (
+        <p className="missing-days-warning">⚠ Bu haftada {partialMissing.length} günde nakit veya POS yazılmamış</p>
       )}
       {open && <>
       {rangeLabel && <p className="hint">{rangeLabel}</p>}
@@ -136,7 +152,7 @@ function DailyRevenueChart({ title, dailyIncome, year, month, formatValue = form
                   key={d.dateStr}
                   className={`bar${d.isSunday ? ' bar-sunday' : ''}${missingSet.has(d.dateStr) ? ' bar-missing' : ''}`}
                   style={{ height: `${Math.max(2, (d.total / maxTotal) * 100)}%` }}
-                  title={`${dateFormatter.format(new Date(d.dateStr))}: ${missingSet.has(d.dateStr) ? 'veri girilmedi' : formatValue(d.total)}`}
+                  title={`${dateFormatter.format(new Date(d.dateStr))}: ${missingSet.has(d.dateStr) ? 'veri girilmedi' : formatValue(d.total)}${partialByDate.has(d.dateStr) ? ` (${partialByDate.get(d.dateStr).join(' ve ')} yazılmadı)` : ''}`}
                 >
                   <span className="bar-value">{missingSet.has(d.dateStr) ? '—' : formatValue(d.total).replace(' ₺', '')}</span>
                 </div>
@@ -149,6 +165,11 @@ function DailyRevenueChart({ title, dailyIncome, year, month, formatValue = form
           {missingDates.length > 0 && (
             <p className="missing-days-warning">
               ⚠ {missingDates.length} gün veri girilmemiş: {missingDates.map((d) => dateFormatter.format(new Date(d))).join(', ')} — bu günler ortalamaya dahil edilmedi, geriye dönük girmeyi unutma.
+            </p>
+          )}
+          {partialMissing.length > 0 && (
+            <p className="missing-days-warning">
+              ⚠ Eksik yazılan günler: {partialMissing.map((p) => `${dateFormatter.format(new Date(p.dateStr))} (${p.lack.join(' ve ')} yazılmadı)`).join(', ')}
             </p>
           )}
           <p className="hint">

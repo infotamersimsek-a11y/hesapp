@@ -73,7 +73,7 @@ router.get('/monthly', async (req, res) => {
     params
   );
   const byDate = await pool.query(
-    `SELECT to_char(date, 'YYYY-MM-DD') AS date, COALESCE(SUM(amount),0) AS total FROM daily_income
+    `SELECT to_char(date, 'YYYY-MM-DD') AS date, COALESCE(SUM(amount),0) AS total, BOOL_OR(method='nakit') AS has_cash, BOOL_OR(method='pos') AS has_pos FROM daily_income
      WHERE EXTRACT(YEAR FROM date)=$1 AND EXTRACT(MONTH FROM date)=$2 ${shopFilter}
      GROUP BY date ORDER BY date`,
     params
@@ -113,7 +113,7 @@ router.get('/monthly', async (req, res) => {
     balance: posTotal + cashIncomeTotal - fixedExpenseTotal - dailyExpenseTotal,
     expenseByCategory: byCategory.rows.map((r) => ({ category: r.category, total: Number(r.total) })),
     expenseByVendor: byVendor.rows.map((r) => ({ vendor: r.vendor_name, total: Number(r.total) })),
-    dailyIncome: byDate.rows.map((r) => ({ date: r.date, total: Number(r.total) })),
+    dailyIncome: byDate.rows.map((r) => ({ date: r.date, total: Number(r.total), hasCash: r.has_cash, hasPos: r.has_pos })),
     otherExpenseDetails: otherDetails.rows.map((r) => ({ note: r.note, amount: Number(r.amount), date: r.date })),
     largeExpenses: [...allDaily.rows, ...allFixed.rows]
       .map((r) => ({ label: r.label, note: r.note, amount: Number(r.amount), date: r.date }))
@@ -148,7 +148,7 @@ router.get('/weekly', async (req, res) => {
     params
   );
   const byDate = await pool.query(
-    `SELECT to_char(date, 'YYYY-MM-DD') AS date, COALESCE(SUM(amount),0) AS total FROM daily_income
+    `SELECT to_char(date, 'YYYY-MM-DD') AS date, COALESCE(SUM(amount),0) AS total, BOOL_OR(method='nakit') AS has_cash, BOOL_OR(method='pos') AS has_pos FROM daily_income
      WHERE date>=$1 AND date<$2 ${shopFilter}
      GROUP BY date ORDER BY date`,
     params
@@ -171,7 +171,7 @@ router.get('/weekly', async (req, res) => {
     totalExpense,
     balance: posTotal + cashIncomeTotal - totalExpense,
     expenseByCategory: byCategory.rows.map((r) => ({ category: r.category, total: Number(r.total) })),
-    dailyIncome: byDate.rows.map((r) => ({ date: r.date, total: Number(r.total) })),
+    dailyIncome: byDate.rows.map((r) => ({ date: r.date, total: Number(r.total), hasCash: r.has_cash, hasPos: r.has_pos })),
     largeExpenses: largeExpenses.rows.map((r) => ({ label: r.label, note: r.note, amount: Number(r.amount), date: r.date })),
   });
 });
