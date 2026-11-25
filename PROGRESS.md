@@ -756,3 +756,8 @@ Neon/Groq olmadan hızlı görsel test için: `cd server && npm run preview` (be
 - Test sırasında yanlışlıkla silinen gerçek "Personel" kaydı (30.000 ₺, bu ayki sabit gidere karşılık geliyordu) fark edilir edilmez hemen `PUT` ile geri yüklendi — hem local hem canlıda doğrulandı.
 - Test edildi: Playwright ile Sil'e basınca kutunun listeden gerçekten kaybolduğu (6 firma → 5 firma) doğrulandı. Canlıda `/api/vendor-debt` 6 firma (Kira, Lale Gıda, Alpedo, Örgün Gıda, Personel — geri yüklenmiş, Doğalgaz) doğru döndü.
 - Build temiz, commit+push edildi (`966cc7f`), Vercel otomatik deploy etti, canlıda doğrulandı.
+
+## 2026-11-25
+- Gider kategorilerine **Mutfak**, **Ekipman**, **Pazar Alışverişi** eklendi (`DailyTab.jsx`, `VoiceEntry.jsx`, `server/src/routes/ai.js` sesli giriş prompt'u).
+- **Hacıoğulları Kasım geliri toplu dağıtıldı (doğrudan DB'ye, kullanıcı onaylı):** Kullanıcı verisi: Kasım POS toplamı 115.000; nakit Ekim oranıyla (280/145) ≈ 222.069. Girilmiş olan çıkarıldı (POS 15.100, nakit 34.150), kalan 1–25 Kasım arası o yöntemi girilmemiş günlere 50'nin katı, hafif değişken tutarlarla dağıtıldı (POS 22 gün = 99.900, nakit 21 gün = 187.950). Sonuç: POS 115.000, nakit 222.100. Tüm kayıtların `note` = `toplu dağıtım 2026-11` — geri almak için: `DELETE FROM daily_income WHERE note='toplu dağıtım 2026-11'`.
+- Açık konu: mobil veride (Wi-Fi yokken) siteye girilemiyor — sebep netleşmedi, kullanıcıdan operatör + hata ekranı bekleniyor. Olası: operatör `*.vercel.app` erişim sorunu → çözüm custom domain. Ayrıca `sw.js` `/` için cache-first (index.html hiç yenilenmiyor) — network-first'e çevrilmeli.

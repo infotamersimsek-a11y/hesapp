@@ -121,6 +121,9 @@ export default function VoiceEntry({ shopId, date, adminPassword, onSaved }) {
                   <option>Kişisel Giderler</option>
                   <option>Ekstra Giderler</option>
                   <option>Ürün Alımı</option>
+                  <option>Mutfak</option>
+                  <option>Ekipman</option>
+                  <option>Pazar Alışverişi</option>
                   <option>Diğer</option>
                 </select>
               )}

@@ -23,7 +23,7 @@ const FREE_EDIT_DATES = Array.from({ length: FREE_EDIT_DAYS }, (_, i) => daysAgo
 const isToday = (isoDate) => isoDate.slice(0, 10) === today();
 const isFreeEditDate = (isoDate) => FREE_EDIT_DATES.includes(isoDate.slice(0, 10));
 const DAYS_PER_PAGE = 2;
-const EXPENSE_CATEGORIES = ['Yemek', 'Temizlik', 'Kişisel Giderler', 'Ekstra Giderler', 'Ürün Alımı', 'Kredi Kartı Ödemesi', 'Diğer'];
+const EXPENSE_CATEGORIES = ['Yemek', 'Temizlik', 'Kişisel Giderler', 'Ekstra Giderler', 'Ürün Alımı', 'Mutfak', 'Ekipman', 'Pazar Alışverişi', 'Kredi Kartı Ödemesi', 'Diğer'];
 const CARD_PAYMENT_CATEGORY = 'Kredi Kartı Ödemesi';
 const PERSONAL_EXPENSE_CATEGORY = 'Kişisel Giderler';
 const CARD_OWNER_SHOP = { Tamer: 'Çıtır Tatlı', Ramazan: 'Hacıoğulları' };
