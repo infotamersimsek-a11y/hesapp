@@ -773,3 +773,7 @@ Neon/Groq olmadan hızlı görsel test için: `cd server && npm run preview` (be
 - Kullanıcı teyidi: **Çıtır Tatlı Pazar günleri kapalı** (dağıtım/tahminlerde Pazar atlanmalı). Not: 8 Kasım 2026 (Pazar) için Çıtır'da kullanıcı girişli kayıt var (nakit 6.500, POS 3.000) — tarih hatası olabilir, kullanıcıya soruldu.
 - Çıtır Tatlı 8 Kasım (Pazar) gelir kayıtları (id 301 nakit 6.500, 302 POS 3.000) kullanıcı kuralıyla **9 Kasım Pazartesi**'ye taşındı (Cumartesi 7 dolu, Pazartesi 9 boştu). Kural: Pazar'a girilmiş kayıt → Cumartesi/Pazartesi'den boş olana; ikisi de doluysa ve tutar aynı/yakınsa mükerrer. Hacıoğulları Pazar açık (teyit).
 - Not: Çıtır'da 18 Ekim (Pazar) 3 gider kaydı var (Ekstra 3.000, Kişisel 3.800, Yemek 350) — gider kapalı günde de olabilir, dokunulmadı.
+
+## 2026-11-27
+- Kullanıcı Kasım'da kira ödemesinin ne zaman girildiğini göremedi. DB kontrolü: **Kasım'da hiç kira kaydı yok** — `monthly_expense`'te Kasım için hiç kayıt yok (iki dükkan); kira sadece Eylül (22.000, "Ev kirası", kart 40) ve Ekim (60.000) var. `vendor_debt`'te de artık "Kira" firması yok. Günlük giderde de yok.
+- `monthly_expense`'e `created_at TIMESTAMP DEFAULT now()` eklendi (schema.sql'e `ALTER ... IF NOT EXISTS`, canlı DB'ye doğrudan uygulandı). Eski 8 kayıt NULL (tarih bilinmiyor). `MonthlyTab.jsx` sabit gider listesinde "Eklendi: 27 Kasım 2026" / "Eklenme tarihi kayıtlı değil" gösteriliyor.

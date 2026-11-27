@@ -90,6 +90,10 @@ CREATE TABLE IF NOT EXISTS waste_log (
   note TEXT
 );
 
+-- entry time for fixed expenses (old rows stay NULL = unknown)
+ALTER TABLE monthly_expense ADD COLUMN IF NOT EXISTS created_at TIMESTAMP;
+ALTER TABLE monthly_expense ALTER COLUMN created_at SET DEFAULT now();
+
 CREATE INDEX IF NOT EXISTS idx_daily_income_date ON daily_income(shop_id, date);
 CREATE INDEX IF NOT EXISTS idx_daily_expense_date ON daily_expense(shop_id, date);
 CREATE INDEX IF NOT EXISTS idx_monthly_expense_ym ON monthly_expense(shop_id, year, month);

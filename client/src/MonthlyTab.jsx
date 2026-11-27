@@ -369,6 +369,7 @@ export default function MonthlyTab({ shops }) {
                   <li key={x.id}>
                     <span>
                       {x.vendor_name}{x.note ? ` — ${x.note}` : ''}
+                      <span className="hint"> · {x.created_at ? `Eklendi: ${dateFormatter.format(new Date(x.created_at))}` : 'Eklenme tarihi kayıtlı değil'}</span>
                       {card ? <span className="tag-pos"> {card.name} {card.owner}{card.last4 ? ` ••••${card.last4}` : ''}</span> : ''}
                     </span>
                     <span>
